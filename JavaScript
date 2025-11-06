@@ -1,0 +1,455 @@
+// ====================================================================
+// ========================= ASV DApp UNIFICADA =========================
+// ====================================================================
+
+// --- 1. CONFIGURACIÓN GLOBAL Y CONSTANTES REALES ---
+
+// Dirección de tu contrato ASV-A real en la BNB Chain
+const ASV_A_TOKEN_ADDRESS = "0x2682FA44105a60F2016FAa8909eA82d3d427bfFc";
+const ASV_A_TOKEN_DECIMALS = 18;
+
+// ABI mínima necesaria (para balanceOf y transfer)
+const ASV_A_TOKEN_ABI = [
+    "function transfer(address to, uint256 amount) returns (bool)",
+    "function balanceOf(address account) view returns (uint256)" 
+];
+
+// Umbral para la Vitalidad: 1000 ASV-A equivalen al 100% de Vitalidad.
+const MAX_VITALITY_TOKEN_THRESHOLD = 1000; 
+
+// ====================================================================
+// --- 2. GESTORES DE MÓDULOS (CLASES) ---
+// ====================================================================
+
+class ConfigManager {
+    get(key) {
+        const settings = {
+            'MAX_CONTEXT_MESSAGES': 10,
+            'VITALITY_SYNC_INTERVAL': 60000, // 60 segundos
+            // Asegúrate de cambiar 'localhost:5000' por tu URL de servidor en producción
+            'API_ENDPOINT': 'http://localhost:5000/api/ai-response' 
+        };
+        return settings[key];
+    }
+}
+
+class ThemeManager {
+    constructor() {
+        this.currentTheme = 'dark';
+    }
+    loadTheme() {
+        // Implementación de carga de tema
+    }
+    toggleTheme() {
+        this.currentTheme = (this.currentTheme === 'dark' ? 'light' : 'dark');
+        document.body.classList.toggle('light-theme');
+    }
+}
+
+class StatsManager {
+    constructor() {
+        this.messageCount = 0;
+        this.sessionStartTime = Date.now();
+        this.sessionTimer = null;
+    }
+    incrementMessageCount() {
+        this.messageCount++;
+    }
+    startSessionTimer() {
+        this.sessionStartTime = Date.now();
+    }
+    stopSessionTimer() {
+        if (this.sessionTimer) clearInterval(this.sessionTimer);
+    }
+}
+
+class LivingAvatar {
+    setEmotion(emotion) {
+        window.ASV.app.log(`Avatar: Emoción -> ${emotion}`, 'debug');
+    }
+    setResponse(text) {
+        // Aquí debes implementar la visualización de la respuesta
+        window.ASV.app.log(`Avatar: Respuesta -> ${text.substring(0, 40)}...`, 'debug');
+    }
+}
+
+class VitalitySystem {
+    constructor(avatar) {
+        this.avatar = avatar;
+        this.vitalityStatus = 50;
+    }
+
+    // Actualiza la Vitalidad y la emoción del avatar
+    updateVitality(status) {
+        this.vitalityStatus = status; 
+        const emotion = status > 50 ? 'happy' : (status < 20 ? 'angry' : 'idle');
+        this.avatar.setEmotion(emotion);
+        
+        // Actualiza la barra de vitalidad en la UI
+        const bar = document.getElementById('vitality-bar');
+        if (bar) bar.style.width = `${status}%`;
+    }
+    
+    // Función REAL: Sincroniza Vitalidad con saldo de token ASV-A
+    async syncVitality(account) {
+        if (!account) return;
+        
+        const balance = await window.ASV.app.modules.wallet.getTokenBalance(account);
+        
+        let newVitality;
+        if (balance >= MAX_VITALITY_TOKEN_THRESHOLD) {
+            newVitality = 100; 
+        } else {
+            newVitality = Math.floor((balance / MAX_VITALITY_TOKEN_THRESHOLD) * 100);
+            newVitality = Math.max(0, newVitality);
+        }
+        
+        this.updateVitality(newVitality); 
+        window.ASV.app.log(`Vitalidad sincronizada. Saldo: ${balance} ASV-A. Vitalidad: ${newVitality}%`, 'info');
+    }
+}
+
+class APIManager {
+    constructor(config) {
+        this.config = config;
+        this.API_ENDPOINT = this.config.get('API_ENDPOINT'); 
+    }
+    
+    // Función REAL: Llama a tu servidor Flask/Gemini (que devuelve el JSON estructurado)
+    async getAIResponse(input, currentAccount, context) {
+        window.ASV.app.log('Llamando al servidor de IA...', 'info');
+        
+        const body = {
+            input: input,
+            account: currentAccount,
+            context: context 
+        };
+
+        const response = await fetch(this.API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error en la respuesta del servidor: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data; 
+    }
+}
+
+class WalletManager {
+    constructor(config) {
+        this.config = config;
+        this.tokenContract = null;
+        this.provider = null;
+    }
+
+    getCurrentProvider() {
+        return window.ethereum; 
+    }
+    
+    // Función REAL: Configura el contrato ASV-A
+    async setupContract() {
+        if (!this.getCurrentProvider() || typeof ethers === 'undefined') return;
+
+        try {
+            this.provider = new ethers.providers.Web3Provider(this.getCurrentProvider());
+            
+            this.tokenContract = new ethers.Contract(
+                ASV_A_TOKEN_ADDRESS,
+                ASV_A_TOKEN_ABI,
+                this.provider
+            );
+            window.ASV.app.log('Contrato ASV-A inicializado.', 'success');
+
+        } catch (e) {
+            window.ASV.app.log(`Error al configurar el contrato: ${e.message}`, 'error');
+        }
+    }
+    
+    // Función REAL: Obtiene el saldo del token ASV-A
+    async getTokenBalance(account) {
+        if (!this.tokenContract) return 0;
+        
+        try {
+            const balanceWei = await this.tokenContract.balanceOf(account);
+            const balanceHuman = ethers.utils.formatUnits(balanceWei, ASV_A_TOKEN_DECIMALS); 
+            return parseFloat(balanceHuman);
+
+        } catch (e) {
+            window.ASV.app.log(`Error al obtener saldo ASV-A: ${e.message}`, 'error');
+            return 0;
+        }
+    }
+}
+
+class PaymentsManager {
+    constructor(config, walletManager) {
+        this.config = config;
+        this.walletManager = walletManager;
+        this.paymentDetails = null;
+    }
+
+    prefillForm(details) {
+        this.paymentDetails = details;
+        
+        const recipientEl = document.getElementById('payment-recipient');
+        const amountEl = document.getElementById('payment-amount');
+        const reasonEl = document.getElementById('payment-reason');
+        const container = document.getElementById('payment-form-container');
+        
+        if (recipientEl && amountEl && reasonEl && container) {
+            recipientEl.value = details.recipient_address;
+            amountEl.value = details.amount_asv_a;
+            reasonEl.textContent = details.reason;
+            container.style.display = 'block';
+        }
+    }
+
+    // Función REAL: Ejecuta la transferencia de ASV-A
+    async processPayment() {
+        if (!this.paymentDetails || typeof ethers === 'undefined') return;
+
+        try {
+            const provider = new ethers.providers.Web3Provider(this.walletManager.getCurrentProvider());
+            const signer = provider.getSigner();
+
+            // Crea el contrato con el firmante para poder ejecutar la transacción
+            const tokenContract = new ethers.Contract(
+                ASV_A_TOKEN_ADDRESS,
+                ASV_A_TOKEN_ABI,
+                signer
+            );
+            
+            const amountInWei = ethers.utils.parseUnits(
+                this.paymentDetails.amount_asv_a.toString(), 
+                ASV_A_TOKEN_DECIMALS
+            );
+
+            window.ASV.app.showNotification('Enviando transacción... ¡Confirma en tu Wallet!', 'info');
+            
+            const tx = await tokenContract.transfer(
+                this.paymentDetails.recipient_address, 
+                amountInWei
+            );
+            
+            await tx.wait();
+
+            window.ASV.app.showNotification(`Pago exitoso. Hash: ${tx.hash}`, 'success', 10000);
+            
+            this.paymentDetails = null;
+            document.getElementById('payment-form-container').style.display = 'none';
+
+        } catch (e) {
+            const errorMessage = e.message?.includes('user rejected transaction') 
+                ? 'Transacción rechazada por el usuario.' 
+                : 'Error al ejecutar el pago en la blockchain.';
+                
+            window.ASV.app.log(`Error de pago: ${e.message}`, 'error');
+            window.ASV.app.showNotification(errorMessage, 'error', 8000);
+        }
+    }
+}
+
+class VoiceManager {
+    constructor(app) { this.app = app; }
+}
+
+
+// ====================================================================
+// --- 3. APLICACIÓN PRINCIPAL (ASVApplication) ---
+// ====================================================================
+
+class ASVApplication{
+    constructor(){
+        this.modules={};
+        this.state={currentAccount:null,conversationHistory:[]};
+        this.isInitialized=false;
+        this.log=this.createLogger();
+        this.showNotification=this.createNotifier();
+        this.escapeHtml=this.createHtmlEscaper();
+        window.ASV.app=this;
+    }
+
+    async init(){
+        if(this.isInitialized)return;
+        this.log('Iniciando ASV DApp...','info');
+        await this.initializeModules();
+        this.setupUIListeners();
+        this.isInitialized=true;
+        this.log('ASV DApp lista. Esperando conexión de Wallet.','success');
+    }
+
+    async initializeModules(){
+        // Reemplazamos la configuración de window.ASV.config con ConfigManager
+        this.modules.config=new ConfigManager(); 
+        this.modules.themeManager=new ThemeManager();
+        this.modules.stats=new StatsManager();
+        this.modules.avatar=new LivingAvatar();
+        
+        this.modules.wallet=new WalletManager(this.modules.config);
+        
+        this.modules.vitality=new VitalitySystem(this.modules.avatar);
+        this.modules.api=new APIManager(this.modules.config);
+        this.modules.payments=new PaymentsManager(this.modules.config,this.modules.wallet);
+        this.modules.voice=new VoiceManager(this);
+        this.modules.themeManager.loadTheme();
+    }
+
+    setupUIListeners(){
+        document.getElementById('send-btn')?.addEventListener('click',()=>this.handleUserInput());
+        document.getElementById('user-input')?.addEventListener('keypress',(e)=>{
+            if(e.key==='Enter')this.handleUserInput();
+        });
+        document.getElementById('theme-toggle')?.addEventListener('click',()=>{
+            this.modules.themeManager.toggleTheme();
+            this.showNotification(`Tema cambiado a ${this.modules.themeManager.currentTheme}`,'info');
+        });
+        // Listener REAL para confirmar el pago
+        document.getElementById('confirm-payment-btn')?.addEventListener('click', () => 
+            this.modules.payments.processPayment()
+        );
+    }
+
+    async handleUserInput(){
+        const el=document.getElementById('user-input');
+        const v=(el?.value||'').trim();
+        if(v==='')return;
+        const btn=document.getElementById('send-btn');
+        if (btn) btn.disabled=true;
+        if (el) el.value='';
+        this.addMessageToHistory(v,'user');
+        await this.processConversation(v);
+        this.modules.stats.incrementMessageCount();
+        if (btn) btn.disabled=false;
+    }
+
+    async processConversation(input){
+        if(!this.state.currentAccount){
+            this.modules.avatar.setResponse('Conecta tu Wallet para interactuar.','sad');
+            return;
+        }
+        this.modules.avatar.setEmotion('thinking');
+        try{
+            const ctx=this.getLimitedConversationHistory();
+            const r=await this.modules.api.getAIResponse(input,this.state.currentAccount,ctx);
+            const {text_response, vitality_status, action_type, payment_details}=r;
+            
+            this.modules.vitality.updateVitality(vitality_status); 
+            this.modules.avatar.setResponse(text_response);
+            this.addMessageToHistory(text_response,'avatar');
+
+            if(action_type==='suggest_payment'&&payment_details){
+                this.modules.payments.prefillForm(payment_details);
+            }
+        }catch(e){
+            this.log(`Error de la IA: ${e.message}`,'error');
+            this.modules.avatar.setResponse('Hubo un error de comunicación con el servidor de IA (Gemini).','angry');
+        }finally{
+            this.modules.avatar.setEmotion('idle');
+        }
+    }
+
+    // Lógica REAL de cambio de cuenta
+    async handleAccountChange(a){
+        const newAccount = a?.[0] || null; // Maneja si 'a' es un array vacío
+        this.state.currentAccount=newAccount;
+
+        if (newAccount) {
+            this.modules.wallet.setupContract();
+            await this.modules.vitality.syncVitality(newAccount);
+            this.startBackgroundServices();
+            this.log(`Wallet conectada: ${newAccount.substring(0, 6)}...`, 'success');
+        } else {
+            this.stopBackgroundServices();
+            this.log('Wallet desconectada.', 'info');
+        }
+    }
+
+    startBackgroundServices(){
+        this.modules.stats.startSessionTimer();
+        const t=this.modules.config.get('VITALITY_SYNC_INTERVAL');
+        if(this.vitalityInterval)clearInterval(this.vitalityInterval);
+        this.vitalityInterval=setInterval(()=>{
+            if(this.state.currentAccount){
+                this.modules.vitality.syncVitality(this.state.currentAccount)
+            }
+        },t);
+    }
+
+    stopBackgroundServices(){
+        if(this.vitalityInterval)clearInterval(this.vitalityInterval);
+        this.modules.stats.stopSessionTimer();
+    }
+
+    addMessageToHistory(content,role){
+        const msg={role,content,timestamp:new Date().toLocaleTimeString()};
+        this.state.conversationHistory.push(msg);
+        const max=this.modules.config.get('MAX_CONTEXT_MESSAGES');
+        if(this.state.conversationHistory.length>max)this.state.conversationHistory.shift();
+        const h=document.getElementById('conversation-history');
+        const el=document.createElement('div');
+        el.className=`message ${role}`;
+        el.innerHTML=`<span class="timestamp">${msg.timestamp}:</span> <span class="content">${this.escapeHtml(content)}</span>`;
+        if (h) {
+            h.appendChild(el);
+            h.scrollTop=h.scrollHeight;
+        }
+    }
+
+    getLimitedConversationHistory(){
+        return this.state.conversationHistory;
+    }
+
+    createLogger(){
+        return (msg,type)=>{console.log(`[ASV-DAPP] [${type.toUpperCase()}] ${msg}`)}
+    }
+
+    createNotifier(){
+        return (msg,type,duration=5000)=>{
+            const c=document.getElementById('notifications-container');
+            if (!c) return;
+            const n=document.createElement('div');
+            n.className=`notification ${type}`;
+            n.textContent=msg;
+            c.appendChild(n);
+            setTimeout(()=>{n.classList.add('show')},10);
+            setTimeout(()=>{
+                n.classList.remove('show');
+                n.addEventListener('transitionend',()=>n.remove())
+            },duration);
+        }
+    }
+
+    createHtmlEscaper(){
+        return s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+}
+
+// ====================================================================
+// --- 4. INICIALIZACIÓN Y LISTENERS DE WINDOW ---
+// ====================================================================
+
+window.ASV=window.ASV||{};
+window.ASV.app=new ASVApplication();
+
+// Inicialización de la DApp al cargar el DOM
+document.addEventListener('DOMContentLoaded',()=>window.ASV.app.init());
+
+// Listener para cambios de cuenta/red en la wallet (MetaMask, etc.)
+if (window.ethereum) {
+    // Escucha cuando las cuentas cambian o cuando se conecta por primera vez
+    window.ethereum.on('accountsChanged', (accounts) => {
+        window.ASV.app.handleAccountChange(accounts);
+    });
+    
+    // Inicia la sincronización si la wallet ya está conectada al cargar la página
+    window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
+        if (accounts.length > 0) {
+             window.ASV.app.handleAccountChange(accounts);
+        }
+    });
+}

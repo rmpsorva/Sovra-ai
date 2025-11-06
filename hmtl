@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>ASV DApp — Living Avatar Web3</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg-dark:#0e0f12;--bg-light:#f5f7fb;--text-dark:#e9edf3;--text-light:#1c2333;
+      --primary:#00bcd4;--secondary:#1a1f2e;--error:#ef4444;--success:#22c55e;--warning:#f59e0b;
+      --card:#151a26;--border:#2a2f3f;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg-dark);color:var(--text-dark);min-height:100vh;display:flex}
+    body.light{background:var(--bg-light);color:var(--text-light)}
+    .shell{width:100%;max-width:980px;margin:auto;display:flex;flex-direction:column;gap:14px;padding:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+    body.light .card{background:white;border-color:#e6e8ef}
+    header.card{padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .title{display:flex;align-items:center;gap:10px}
+    .title h1{font-size:18px;margin:0}
+    .tag{font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(0,188,212,.15);color:#8beaf5;border:1px solid rgba(0,188,212,.35)}
+    body.light .tag{background:#e6fbff;color:#0e6b77;border-color:#b6f3fb}
+    .actions{display:flex;gap:10px}
+    .btn{border:1px solid var(--border);background:var(--secondary);color:var(--text-dark);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+    .btn.primary{background:var(--primary);color:#052229;border:none}
+    .btn.wallet{background:#f6851b;color:white;border:none}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    body.light .btn{background:#f0f2f8;border-color:#e2e6f2;color:#1f2433}
+    .vitality-wrap{width:100%;margin-top:10px}
+    .vitality{height:12px;background:#111827;border-radius:999px;overflow:hidden;border:1px solid var(--border)}
+    .vitality>div{height:100%;width:35%;background:linear-gradient(90deg,#00bcd4,#4ade80);transition:width .6s ease, background .3s}
+    body.light .vitality{background:#eef1f7}
+    /* grid */
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    /* chat */
+    .chat.card{display:flex;flex-direction:column;height:500px;overflow:hidden}
+    .chat-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .history{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:radial-gradient(1200px 300px at 20% -10%,rgba(0,188,212,.06),transparent)}
+    .msg{max-width:78%;padding:10px 14px;border-radius:14px;line-height:1.45;font-size:14px}
+    .msg .ts{opacity:.65;font-size:11px;margin-right:6px}
+    .msg.user{align-self:flex-end;background:var(--primary);color:#06252a;border-bottom-right-radius:6px}
+    .msg.bot{align-self:flex-start;background:#101623;border:1px solid var(--border);border-bottom-left-radius:6px}
+    body.light .msg.bot{background:#f7f9ff;border-color:#e6e8ef}
+    .composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border)}
+    input[type=text]{flex:1;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:#0e1320;color:var(--text-dark)}
+    body.light input[type=text]{background:white;color:#1a2233;border-color:#dfe3ef}
+    /* payments */
+    .payments.card{padding:14px;display:flex;flex-direction:column;gap:10px}
+    .pay-head{display:flex;align-items:center;gap:8px}
+    .pay-form{display:none;flex-direction:column;gap:10px;border-top:1px dashed var(--border);padding-top:10px}
+    .row{display:grid;grid-template-columns:140px 1fr;gap:10px;align-items:center}
+    .row input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:#0e1320;color:var(--text-dark)}
+    body.light .row input{background:#fff;color:#1c2233;border-color:#dfe3ef}
+    .muted{opacity:.8;font-size:12px}
+    
+    /* ESTILOS DINÁMICOS DEL AVATAR */
+    .face.card{padding:14px;display:flex;align-items:center;gap:14px}
+    .canvas-wrap{
+      position:relative;width:120px;height:120px;border-radius:50%;overflow:hidden;border:1px solid var(--border);
+      /* **IMPORTANTE: Reemplaza esta URL con la imagen de tu avatar (e.g., matrix azul)** */
+      background:url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Digital_face.jpg/1200px-Digital_face.jpg') no-repeat center center; 
+      background-size: cover;
+      transition: filter 0.8s ease-in-out, transform 0.2s; 
+      box-shadow: 0 0 20px rgba(0, 188, 212, 0.5);
+    }
+    #face-overlay { 
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0);
+      border-radius: 50%;
+      transition: background-color 0.1s;
+    }
+    canvas#face{display:none} /* Ocultamos el canvas 2D simple */
+
+    .face-info{display:flex;flex-direction:column;gap:6px}
+    /* notifications */
+    #toasts{position:fixed;top:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+    .toast{padding:10px 14px;border-radius:10px;color:#041316;box-shadow:0 6px 20px rgba(0,0,0,.35);transform:translateX(120%);opacity:0;transition:.35s}
+    .toast.show{transform:none;opacity:1}
+    .t-info{background:#67e8f9}.t-success{background:#86efac}.t-warn{background:#fde68a}.t-err{background:#fca5a5}
+  </style>
+</head>
+<body>
+  <div class="shell">
+        <header class="card">
+      <div class="title">
+        <h1>🤖 ASV DApp</h1>
+        <span class="tag">Living Avatar · Web3</span>
+      </div>
+      <div class="actions">
+        <button id="btn-theme" class="btn">🌙 Tema</button>
+        <button id="btn-connect" class="btn wallet">🔗 Conectar Wallet</button>
+      </div>
+      <div class="vitality-wrap" style="grid-column:1/-1">
+        <div class="vitality"><div id="vitality-bar" style="width:32%"></div></div>
+        <div class="muted" id="vitality-label" style="margin-top:6px">Vitalidad: 32%</div>
+      </div>
+    </header>
+
+    <div class="grid">
+            <section class="chat card">
+        <div class="chat-head">
+          <strong>Chat con ASV</strong>
+          <span class="muted" id="addr-label">Wallet: —</span>
+        </div>
+        <div id="history" class="history"></div>
+        <div class="composer">
+          <input id="prompt" type="text" placeholder="Escribe aquí… (p. ej. 'recargar vitalidad')" maxlength="500" />
+          <button id="btn-send" class="btn primary">Enviar</button>
+        </div>
+      </section>
+
+            <aside class="right">
+        <div class="face card">
+          <div class="canvas-wrap">
+            <canvas id="face" width="240" height="240"></canvas>
+            <div id="face-overlay"></div>           </div>
+          <div class="face-info">
+            <div><strong>Estado:</strong> <span id="state-text">inicializando…</span></div>
+            <div><strong>Emoción:</strong> <span id="emotion-text">idle</span></div>
+            <div class="muted">Los microgestos y la mirada cambian con la vitalidad.</div>
+          </div>
+        </div>
+
+        <div class="payments card">
+          <div class="pay-head">
+            <strong>💳 Recarga / Pago ASV</strong>
+            <span class="muted">Token: <code id="token-addr">—</code></span>
+          </div>
+          <div id="pay-form" class="pay-form">
+            <div class="row">
+              <label>Razón</label>
+              <input id="pay-reason" type="text" readonly />
+            </div>
+            <div class="row">
+              <label>Destinatario</label>
+              <input id="pay-to" type="text" readonly />
+            </div>
+            <div class="row">
+              <label>Cantidad (ASV)</label>
+              <input id="pay-amount" type="text" readonly />
+            </div>
+            <button id="btn-pay" class="btn primary">✅ Confirmar Pago</button>
+            <div class="muted">Se abrirá MetaMask; al confirmar, la vitalidad subirá.</div>
+          </div>
+          <div id="pay-hint" class="muted">El avatar mostrará aquí el formulario cuando sugiera recargar.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+    <div id="toasts"></div>
+
+  <script>
+    // ========= CONFIG =========
+    const API_ENDPOINT = "http://localhost:5000/api/ai-response"; // Flask/Backend de IA
+    const TOKEN_ADDRESS = "0x2682FA44105a60F2016FAa8909eA82d3d427bfFc"; // Contrato del Token ASV
+    const DEFAULT_DECIMALS = 18;
+
+    // ========= STATE =========
+    const state = {
+      provider: null,
+      signer: null,
+      account: null,
+      token: null,
+      tokenDecimals: DEFAULT_DECIMALS,
+      isSending: false,
+      history: []
+    };
+
+    // ========= UI HELPERS =========
+    const $ = (id)=>document.getElementById(id);
+    const addToast = (msg, kind='t-info', ms=4000)=>{
+      const n=document.createElement('div'); n.className=`toast ${kind}`; n.textContent=msg;
+      $('toasts').appendChild(n); requestAnimationFrame(()=>n.classList.add('show'));
+      setTimeout(()=>{n.classList.remove('show'); n.addEventListener('transitionend',()=>n.remove())}, ms);
+    };
+    const ts = ()=>new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    const pushMsg = (role, content)=>{
+      state.history.push({role, content, timestamp:ts()});
+      const d = document.createElement('div'); d.className=`msg ${role}`;
+      d.innerHTML = `<span class="ts">${ts()}:</span> ${content}`;
+      $('history').appendChild(d); $('history').scrollTop = $('history').scrollHeight;
+    };
+
+    // ========= THEME =========
+    $('btn-theme').addEventListener('click',()=>{
+      document.body.classList.toggle('light');
+      addToast(`Tema ${document.body.classList.contains('light')?'claro':'oscuro'} activado`,'t-info');
+    });
+
+    // ========= VITALITY + EMOTION =========
+    function setVitality(p){
+      const v = Math.max(0, Math.min(100, Math.round(p)));
+      $('vitality-bar').style.width = v+'%';
+      $('vitality-label').textContent = `Vitalidad: ${v}%`;
+      if (v < 25) $('vitality-bar').style.background = 'linear-gradient(90deg,#ef4444,#f59e0b)';
+      else if (v < 50) $('vitality-bar').style.background = 'linear-gradient(90deg,#f59e0b,#fde047)';
+      else $('vitality-bar').style.background = 'linear-gradient(90deg,#00bcd4,#4ade80)';
+      drawFace(v);
+      setEmotion(v);
+    }
+    function setEmotion(v){
+      const e = v>70?'happy':(v>=40?'neutral':(v>=20?'tired':'low'));
+      $('emotion-text').textContent = e;
+    }
+
+    // ========= AVATAR FACE (SIMULACIÓN DE GESTOS EN IMAGEN) =========
+    const faceWrap = document.querySelector('.canvas-wrap');
+    const faceOverlay = $('face-overlay');
+    let blinkTimer = 0;
+    
+    function drawFace(vital=40){
+      // 1. Simulación de Vitalidad con Filtros CSS
+      // Más vital -> más brillo y contraste
+      let brightness = 1 + (vital - 50) / 100 * 0.4; 
+      let contrast = 1 + (vital - 50) / 100 * 0.2; 
+
+      faceWrap.style.filter = `brightness(${brightness}) contrast(${contrast})`;
+      
+      // 2. Simulación de Estado (Sacudida/Pulso)
+      if (vital < 20) {
+        // Pequeño temblor cuando la vitalidad es crítica
+        faceWrap.style.transform = `scale(0.98) rotate(${Math.sin(Date.now()/50) * 0.5}deg)`;
+      } else {
+        faceWrap.style.transform = `scale(1)`;
+      }
+    }
+    
+    // Nueva función de animación para parpadeo y efectos continuos
+    function animate(){
+      blinkTimer+=1;
+      
+      // Simulación de parpadeo suave con opacidad del overlay
+      const blink = (Math.sin(blinkTimer/15)+1)/2; // 0..1
+      // Más opaco el parpadeo si la vitalidad está baja (más 'pesados' los párpados)
+      const eyeClose = Math.pow(blink, 8) * (faceWrap.style.filter.includes('brightness(1') ? 0.9 : 0.6);
+      
+      if (eyeClose > 0.4) {
+        faceOverlay.style.backgroundColor = `rgba(0, 0, 0, ${eyeClose})`;
+      } else {
+        faceOverlay.style.backgroundColor = `rgba(0, 0, 0, 0)`;
+      }
+
+      // Redibujamos la cara en cada frame para capturar el temblor
+      const curr = parseInt($('vitality-label').textContent.replace(/\D/g,''))||32;
+      drawFace(curr);
+      
+      requestAnimationFrame(animate);
+    }
+    
+    animate(); 
+    drawFace(32); // Inicializa con vitalidad base
+
+    // ========= WALLET =========
+    async function ensureProvider(){
+      if(!window.ethereum){ addToast("Instala MetaMask para usar la DApp.","t-err",6000); return false; }
+      if(!state.provider){ state.provider = new ethers.providers.Web3Provider(window.ethereum); }
+      return true;
+    }
+    async function connect(){
+      if(!(await ensureProvider())) return;
+      try{
+        const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
+        state.account = accounts[0] || null;
+        $('addr-label').textContent = 'Wallet: ' + (state.account ? state.account.slice(0,8)+'…'+state.account.slice(-4) : '—');
+        $('btn-connect').textContent = state.account ? '✅ Conectado' : '🔗 Conectar Wallet';
+        $('btn-connect').disabled = !!state.account;
+        state.signer = state.provider.getSigner();
+        await setupToken();
+        addToast('Wallet conectada.','t-success');
+        pushMsg('bot','Wallet conectada. Estoy listo para operar con tu token ASV.');
+        // Vitalidad basada en saldo
+        await syncVitalityByBalance();
+      }catch(e){ addToast('Conexión cancelada o fallida.','t-err'); }
+    }
+    async function setupToken(){
+      state.token = new ethers.Contract(TOKEN_ADDRESS, [
+        "function balanceOf(address) view returns (uint256)",
+        "function transfer(address to, uint256 amount) returns (bool)",
+        "function decimals() view returns (uint8)"
+      ], state.signer || state.provider);
+      $('token-addr').textContent = TOKEN_ADDRESS;
+      try{
+        state.tokenDecimals = parseInt(await state.token.decimals()) || DEFAULT_DECIMALS;
+      }catch{ state.tokenDecimals = DEFAULT_DECIMALS; }
+    }
+    async function tokenBalanceOf(addr){
+      if(!state.token) return 0;
+      try{
+        const raw = await state.token.balanceOf(addr);
+        return parseFloat(ethers.utils.formatUnits(raw, state.tokenDecimals));
+      }catch{ return 0; }
+    }
+    async function syncVitalityByBalance(){
+      if(!state.account) return;
+      const bal = await tokenBalanceOf(state.account);
+      // Umbral: 1000 tokens = 100% vitalidad
+      const pct = Math.max(5, Math.min(100, Math.round((bal/1000)*100)));
+      setVitality(pct);
+      $('state-text').textContent = 'operativo';
+    }
+
+    // ========= BACKEND CHAT =========
+    async function askBackend(userText){
+      if(!state.account){ pushMsg('bot','Conecta tu wallet para continuar.'); return; }
+      const context = state.history.slice(-10).map(m=>({role:m.role==='user'?'user':'avatar', content:m.content}));
+      const payload = { input: userText, account: state.account, context };
+      try{
+        const res = await fetch(API_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const data = await res.json();
+        if(!res.ok){ throw new Error(data?.error || 'HTTP '+res.status); }
+        // pintar respuesta
+        const text = data.text_response || '…';
+        pushMsg('bot', text);
+        // vitalidad
+        if(typeof data.vitality_status === 'number') setVitality(data.vitality_status);
+        // acción de pago
+        if(data.action_type === 'suggest_payment' && data.payment_details){
+          const { recipient_address, amount_asv_a, reason } = data.payment_details;
+          showPaymentForm(recipient_address || TOKEN_ADDRESS, amount_asv_a ?? 10, reason || 'Recarga de Vitalidad');
+        }else{
+          hidePaymentForm();
+        }
+      }catch(e){
+        pushMsg('bot','Error de IA. Intenta de nuevo o verifica el servidor.');
+        addToast('Fallo al contactar el backend.','t-err',5000);
+      }
+    }
+
+    // ========= PAYMENTS =========
+    function showPaymentForm(recipient, amount, reason){
+      $('pay-hint').style.display='none';
+      $('pay-form').style.display='flex';
+      $('pay-to').value = recipient;
+      $('pay-amount').value = amount;
+      $('pay-reason').value = reason;
+    }
+    function hidePaymentForm(){
+      $('pay-form').style.display='none';
+      $('pay-hint').style.display='block';
+    }
+    async function confirmPayment(){
+      if(!state.account || !state.signer || !state.token){ addToast('Conecta tu wallet primero.','t-err'); return; }
+      if(state.isSending) return;
+      state.isSending = true; $('btn-pay').disabled = true;
+      try{
+        const to = $('pay-to').value.trim();
+        const amt = $('pay-amount').value.trim();
+        if(!ethers.utils.isAddress(to)) throw new Error('Dirección inválida');
+        const value = ethers.utils.parseUnits(String(amt), state.tokenDecimals);
+        addToast('Confirmar transacción en MetaMask…','t-info');
+        const tx = await state.token.transfer(to, value);
+        await tx.wait();
+        addToast('Pago confirmado ✅','t-success',5000);
+        pushMsg('bot', `¡Gracias! Recibí ${amt} ASV. Mi vitalidad aumenta.`);
+        // Aumenta la vitalidad con el pago
+        const curr = parseInt($('vitality-label').textContent.replace(/\D/g,''))||35;
+        setVitality(Math.min(100, curr + 20));
+        hidePaymentForm();
+      }catch(e){
+        addToast(e?.message?.includes('rejected')?'Transacción rechazada.':'Error al enviar pago.','t-err',6000);
+      }finally{
+        state.isSending = false; $('btn-pay').disabled = false;
+      }
+    }
+
+    // ========= EVENTS =========
+    $('btn-connect').addEventListener('click', connect);
+    $('btn-pay').addEventListener('click', confirmPayment);
+    $('btn-send').addEventListener('click', ()=>{
+      const v = $('prompt').value.trim(); if(!v) return;
+      $('prompt').value=''; pushMsg('user', v);
+      // comando rápido para recarga
+      if(v.toLowerCase().includes('recargar')){
+        showPaymentForm(TOKEN_ADDRESS, 10, 'Recarga de Vitalidad ASV');
+        return;
+      }
+      askBackend(v);
+      // desgaste natural mínimo por interacción
+      const curr = parseInt($('vitality-label').textContent.replace(/\D/g,''))||32;
+      setVitality(Math.max(5, curr-3));
+    });
+    $('prompt').addEventListener('keypress',(e)=>{ if(e.key==='Enter') $('btn-send').click(); });
+
+    // auto init
+    pushMsg('bot','¡Bienvenido! Soy tu Avatar Viviente ASV. Conecta tu wallet y conversemos.');
+    setVitality(32);
+    $('state-text').textContent = 'listo';
+
+    // provider listeners
+    if(window.ethereum){
+      window.ethereum.on('accountsChanged', (acc)=>{
+        state.account = acc?.[0]||null;
+        $('addr-label').textContent = 'Wallet: ' + (state.account ? state.account.slice(0,8)+'…'+state.account.slice(-4) : '—');
+        if(state.account){ state.signer = state.provider.getSigner(); setupToken().then(syncVitalityByBalance); }
+        else { addToast('Wallet desconectada.','t-warn'); }
+      });
+      window.ethereum.on('chainChanged', ()=>location.reload());
+      // intento de autoconexión
+      window.ethereum.request({method:'eth_accounts'}).then(acc=>{
+        if(acc.length){ state.account = acc[0]; $('btn-connect').click(); }
+      }).catch(()=>{});
+    } else {
+      addToast('Necesitas MetaMask u otra wallet Web3.','t-err',8000);
+    }
+  </script>
+</body>
+</html>

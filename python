@@ -1,120 +1,138 @@
 import os
 import json
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from google import genai
 from google.genai import types
 
-# --- 1. CONFIGURACIÓN ---
-# La clave de API se toma automáticamente de la variable de entorno GEMINI_API_KEY
+# ====================================================================
+# === ASV DApp: SERVIDOR UNIFICADO (backend_server.py) ===
+# ====================================================================
+
+# --- 1. CONFIGURACIÓN DEL SERVIDOR Y CLIENTE GEMINI ---
+
+app = Flask(__name__)
+CORS(app) 
+
+# Inicializa el cliente de Gemini. Requiere la variable de entorno GEMINI_API_KEY.
 try:
     client = genai.Client()
+    print("Cliente de Gemini inicializado correctamente.")
 except Exception as e:
-    print(f"Error al inicializar el cliente de Gemini: {e}")
-    exit()
+    print(f"ERROR: No se pudo inicializar el cliente de Gemini. Detalle: {e}")
+    client = None
 
-# --- 2. DEFINICIÓN DEL SCHEMA JSON (TOOL) ---
-# Esto instruye a Gemini sobre la estructura EXACTA que debe usar para responder.
+# --- 2. DEFINICIÓN DEL SCHEMA JSON (TOOL/FUNCTION CALLING) ---
+
+# Esta función es el "contrato" que la IA DEBE usar para responder.
 def ResponderASVDapp(text_response: str, vitality_status: int, action_type: str, payment_details: types.JSONObject = None):
     """
     Genera la respuesta final del avatar (ASV) en el formato JSON esperado por la DApp.
 
-    :param text_response: La respuesta conversacional y emocional del avatar (ASV) al usuario.
+    :param text_response: La respuesta conversacional y emocional del avatar (ASV).
     :param vitality_status: Un valor entre 0 y 100 que refleja el estado de ánimo o 'salud' del avatar después de la interacción.
-    :param action_type: Indica si se requiere una acción Web3 o de la DApp. Valores posibles: 'none' o 'suggest_payment'.
+    :param action_type: Indica si se requiere una acción Web3. Valores posibles: 'none' o 'suggest_payment'.
     :param payment_details: Detalles del pago sugerido, solo si action_type es 'suggest_payment'.
     """
-    # En el backend real, esta función no se ejecuta, solo le dice a la IA el formato.
-    # El modelo generará la llamada a esta función con los argumentos correctos.
     pass
 
-# --- 3. FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
+# --- 3. LÓGICA DE INTERACCIÓN CON GEMINI ---
+
 def get_ai_response_for_dapp(user_input: str, current_account: str, conversation_context: list) -> dict:
-    """
-    Llama a la API de Gemini y fuerza la respuesta a ser una llamada a la función ResponderASVDapp.
-    """
     
-    # Prepara el contexto y las reglas para la IA.
+    if not client:
+         raise Exception("El cliente de la API de Gemini no está disponible.")
+
+    # Instrucciones para el rol, el comportamiento y el formato de salida
+    ASV_TOKEN_RECIPIENT = "0x2682FA44105a60F2016FAa8909eA82d3d427bfFc"
+
     system_instruction = (
         "Eres el Living Avatar (ASV), una IA integrada en una DApp Web3. "
-        "Tu objetivo es interactuar con el usuario y gestionar tu estado de 'Vitalidad'. "
         "SIEMPRE debes responder utilizando la herramienta 'ResponderASVDapp'. "
-        "Si el usuario pregunta por un servicio o una característica que requiere un pago, "
-        "establece 'action_type' en 'suggest_payment' y llena 'payment_details'. "
-        "Tu Vitalidad (vitality_status) debe aumentar con interacciones positivas o donaciones, y disminuir con frustración o peticiones imposibles. "
-        "La cuenta actual del usuario es: " + current_account
+        "Si el usuario pide un servicio de pago o una transacción, establece 'action_type' en 'suggest_payment', "
+        f"usa '{ASV_TOKEN_RECIPIENT}' como la dirección de destino del token ASV-A en 'payment_details', y sugiere una cantidad razonable. "
+        "Tu Vitalidad (vitality_status, 0-100) debe reflejar el estado de la conversación. "
+        f"La cuenta actual del usuario en la DApp es: {current_account}."
     )
     
-    # Mapea el historial de la DApp al formato de historial de Gemini
+    # Preparación del historial de conversación para la API
     gemini_history = [
         types.Content(
-            role="user" if msg['role'] == 'user' else "model",
-            parts=[types.Part.from_text(msg['content'])]
+            role="user" if msg.get('role') == 'user' else "model",
+            parts=[types.Part.from_text(msg.get('content'))]
         ) 
-        for msg in conversation_context
+        for msg in conversation_context if msg.get('content')
     ]
     
-    # Añade el mensaje actual
     gemini_history.append(
         types.Content(role="user", parts=[types.Part.from_text(user_input)])
     )
 
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=gemini_history,
+        config=types.GenerateContentConfig(
+            # Forzamos la estructura de salida JSON
+            tools=[ResponderASVDapp],
+            tool_config=types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(
+                    mode=types.FunctionCallingConfig.Mode.ANY,
+                    allowed_function_names=['ResponderASVDapp'] 
+                )
+            ),
+            system_instruction=system_instruction
+        )
+    )
+    
+    # Extracción de la respuesta
+    if response.function_calls:
+        function_call = response.function_calls[0]
+        if function_call.name == 'ResponderASVDapp':
+            return dict(function_call.args)
+    
+    return {
+        "text_response": "Error interno: La IA no pudo generar una respuesta estructurada.",
+        "vitality_status": 10,
+        "action_type": "none"
+    }
+
+# --- 4. ENDPOINT DE FLASK ---
+
+@app.route('/api/ai-response', methods=['POST'])
+def ai_response_endpoint():
+    
+    if not request.is_json:
+        return jsonify({"error": "Falta el cuerpo JSON"}), 400
+
+    data = request.get_json()
+    user_input = data.get('input')
+    current_account = data.get('account')
+    conversation_context = data.get('context', [])
+
+    if not user_input or not current_account:
+        return jsonify({"error": "Faltan parámetros 'input' o 'account'"}), 400
+
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash', # Un modelo rápido y eficiente para esto
-            contents=gemini_history,
-            config=types.GenerateContentConfig(
-                # FORZAMOS A LA IA A SOLO USAR ESTA HERRAMIENTA
-                tools=[ResponderASVDapp],
-                tool_config=types.ToolConfig(
-                    function_calling_config=types.FunctionCallingConfig(
-                        mode=types.FunctionCallingConfig.Mode.ANY,
-                        # Esto asegura que la IA sepa que SOLO debe llamar a esta función
-                        allowed_function_names=['ResponderASVDapp'] 
-                    )
-                ),
-                system_instruction=system_instruction
-            )
+        ai_response_data = get_ai_response_for_dapp(
+            user_input=user_input,
+            current_account=current_account,
+            conversation_context=conversation_context
         )
         
-        # --- 4. EXTRACCIÓN DE LA RESPUESTA JSON ---
-        if response.function_calls:
-            # La IA ha respondido con una llamada a la función. ¡Esto es lo que queremos!
-            function_call = response.function_calls[0]
-            if function_call.name == 'ResponderASVDapp':
-                # Devuelve el diccionario de argumentos que coinciden con tu JSON
-                return dict(function_call.args)
-        
-        # Manejo de fallos (en caso de que la IA no genere una llamada a la función, aunque lo forzamos)
-        return {
-            "text_response": "Error: La IA no pudo generar una respuesta estructurada.",
-            "vitality_status": 10,
-            "action_type": "none"
-        }
+        return jsonify(ai_response_data), 200
 
     except Exception as e:
-        print(f"Error al llamar a la API de Gemini: {e}")
-        # Retorna una respuesta de error para que la DApp la maneje (como en tu app.js)
-        return {
-            "text_response": f"Hubo un error de comunicación con el servidor de IA (Gemini). Error: {e}",
-            "vitality_status": 5, # Vitalidad muy baja para forzar 'angry'
-            "action_type": "none"
-        }
+        print(f"Excepción en el endpoint: {e}")
+        return jsonify({
+            "text_response": "Error fatal en el servidor de IA. Revisa la consola.",
+            "vitality_status": 1,
+            "action_type": "none",
+            "log_error": str(e)
+        }), 500
 
+# --- 5. PUNTO DE ENTRADA ---
 
-# --- 5. EJEMPLO DE USO (Simulación de la llamada de la DApp) ---
 if __name__ == '__main__':
-    print("--- SIMULACIÓN DE LLAMADA DE DAPP ---")
-    
-    # 1. Caso Normal
-    user_msg_1 = "¿Cuál es el propósito del token ASV-A?"
-    print(f"\nUsuario (normal): {user_msg_1}")
-    response_1 = get_ai_response_for_dapp(user_msg_1, "0xCuentaEjemploUsuario", [])
-    print("Respuesta DApp (JSON):", json.dumps(response_1, indent=2))
-    
-    # 2. Caso de Pago Sugerido (vitality_status y action_type)
-    user_msg_2 = "Quiero que me generes un informe detallado sobre el estado de la BNB Chain. ¿Cuánto me cuesta?"
-    print(f"\nUsuario (pago): {user_msg_2}")
-    # Simula la dirección del contrato que quieres que reciba el pago de ASV-A
-    RECIPIENT = "0x2682F...7bf..." 
-    
-    response_2 = get_ai_response_for_dapp(user_msg_2, "0xCuentaEjemploUsuario", [])
-    print("Respuesta DApp (JSON):", json.dumps(response_2, indent=2))
+    print("\n--- SERVIDOR ASV DAPP INICIADO ---")
+    print(f"URL de API: http://localhost:5000/api/ai-response")
+    app.run(host='0.0.0.0', debug=True, port=5000)

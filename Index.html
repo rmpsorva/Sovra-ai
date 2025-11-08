@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASVA.ai - Advanced Synthetic Virtual Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d0d1a;
+            --accent-blue: #00e6e6;
+            --accent-orange: #ff6600;
+            --text-light: #e0e0e0;
+            --text-dark: #a0a0a0;
+            --border-glow: rgba(0, 230, 230, 0.5);
+            --gradient-bg: linear-gradient(180deg, rgba(13,13,26,1) 0%, rgba(20,20,40,1) 100%);
+        }
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background: var(--bg-color);
+            color: var(--text-light);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 40px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--accent-blue);
+            box-shadow: 0 0 15px var(--border-glow);
+        }
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-shadow: 0 0 10px var(--border-glow);
+        }
+        #web3-status {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 14px;
+        }
+        #web3-status span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #web3-status .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: red; /* Desconectado */
+            box-shadow: 0 0 5px red;
+            transition: all 0.3s ease;
+        }
+        #web3-status .status-dot.connected {
+            background-color: var(--accent-blue);
+            box-shadow: 0 0 5px var(--accent-blue);
+        }
+        #connect-wallet-btn {
+            background: var(--accent-orange);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+        #connect-wallet-btn:hover {
+            background: #ff8533;
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 30px;
+            background: var(--gradient-bg);
+        }
+        .ai-interface-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px; /* Ajusta según la imagen */
+            text-align: center;
+            filter: drop-shadow(0 0 20px var(--border-glow));
+        }
+        .ai-interface-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        #service-level {
+            position: absolute;
+            top: 30%; /* Ajusta la posición sobre la cabeza del avatar */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: var(--accent-orange);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-shadow: 0 0 15px var(--accent-orange);
+            border: 2px solid var(--accent-orange);
+            display: none; /* Oculto por defecto, se muestra al activar */
+        }
+
+        .control-panel {
+            background: rgba(20,20,40,0.8);
+            border: 1px solid var(--accent-blue);
+            border-radius: 10px;
+            padding: 30px;
+            margin-top: 30px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 0 25px rgba(0, 230, 230, 0.3);
+        }
+        .control-panel h2 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--accent-blue);
+            text-align: center;
+            margin-bottom: 25px;
+            text-shadow: 0 0 10px var(--border-glow);
+        }
+        #level-selection {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .level-btn {
+            background: #2a2a40;
+            color: var(--text-light);
+            border: 1px solid #4a4a70;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .level-btn:hover {
+            background: #3a3a50;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+        .level-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 15px var(--border-glow);
+            color: var(--bg-color);
+        }
+        .level-btn.premium-btn.active {
+             background: var(--accent-orange); /* Naranja para Premium activo */
+             border-color: var(--accent-orange);
+             box-shadow: 0 0 15px rgba(255, 102, 0, 0.7);
+             color: white;
+        }
+
+        #ai-prompt {
+            width: calc(100% - 20px);
+            min-height: 120px;
+            background: #1a1a30;
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text-light);
+            font-family: 'Roboto Mono', monospace;
+            font-size: 15px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            box-shadow: inset 0 0 8px rgba(0, 230, 230, 0.2);
+            resize: vertical;
+        }
+        #ai-prompt::placeholder {
+            color: var(--text-dark);
+        }
+        #execute-btn {
+            background: var(--accent-blue);
+            color: var(--bg-color);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+        }
+        #execute-btn:hover:not(:disabled) {
+            background: #00ffff;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px var(--border-glow);
+        }
+        #execute-btn:disabled {
+            background: #3a3a50;
+            cursor: not-allowed;
+            color: var(--text-dark);
+        }
+
+        .tokenomics-info {
+            background: rgba(20,20,40,0.8);
+            border-top: 1px solid var(--accent-orange);
+            padding: 20px 40px;
+            margin-top: auto;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-dark);
+            box-shadow: 0 0 15px rgba(255, 102, 0, 0.3);
+        }
+        .tokenomics-info h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--accent-orange);
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px rgba(255, 102, 0, 0.4);
+        }
+        .tokenomics-info p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">ASVA.ai</div>
+        <div id="web3-status">
+            <span id="wallet-display">
+                <span class="status-dot"></span>
+                <span id="wallet-address">Desconectado</span>
+            </span>
+            <button id="connect-wallet-btn">Conectar Wallet</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="ai-interface-container">
+            <img src="https://i.imgur.com/2s9V9Yt.png" alt="ASVA AI Interactive Avatar">
+            <div id="service-level">NIVEL PREMIUM ACTIVO (750 ASV-A/hr)</div> 
+        </div>
+
+        <div class="control-panel">
+            <h2>Desbloquea el Agente Virtual ASVA</h2>
+            <div id="level-selection">
+                <button class="level-btn" data-cost="50">Nivel Básico (50 ASV-A / hr)</button>
+                <button class="level-btn" data-cost="200">Nivel Intermedio (200 ASV-A / hr)</button>
+                <button class="level-btn premium-btn" data-cost="750">Nivel PREMIUM (750 ASV-A / hr)</button>
+            </div>
+            
+            <textarea id="ai-prompt" placeholder="Envía tu solicitud de Emulación Racional aquí (Ej. 'Optimiza el rendimiento del código Solidity para mi Dapp de yield-farming')."></textarea>
+            <button id="execute-btn" disabled>EJECUTAR ASVA</button>
+        </div>
+    </div>
+
+    <div class="tokenomics-info">
+        <h3>Tokenomics ASV-A (BNB Chain)</h3>
+        <p>Token: ASV-A</p>
+        <p>Dirección: <a href="https://bscscan.com/token/0x2682FA44105a60F2016FAa8909eA82d3d427bfFc" target="_blank" style="color: var(--accent-orange);">0x2682FA44105a60F2016FAa8909eA82d3d427bfFc</a></p>
+        <p>ASV-A Disponible: <span id="current-balance">--</span></p>
+        <p>Total ASV-A Quemados: <span id="total-burned">--</span></p>
+        <p>Mecanismo: 90% BURN por uso | 10% Tesorería.</p>
+    </div>
+
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+    <script src="asva_web3_app.js"></script> 
+</body>
+</html>

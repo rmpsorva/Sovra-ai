@@ -1,0 +1,10 @@
+# .env - Variables de Entorno para el Servidor ASVA Core API
+
+# URL de Nodo RPC de BNB Chain (Necesaria para que Web3.py lea la blockchain)
+BNB_RPC_URL="https://data-seed-prebsc-1-s1.binance.org:8545/" 
+
+# Clave secreta para la comunicación API (recomendado)
+ASVA_API_SECRET_KEY="tu_clave_secreta_aqui_no_la_compartas"
+
+# Direcciones de Contrato (para la verificación)
+# ASVA_PAYMENT_GATEWAY_ADDRESS="0x0000000000000000000000000000000000000000" 

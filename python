@@ -1,0 +1,137 @@
+# asva_core_api.py - Servidor Backend de la IA ASVA Core (Versión Perfecta)
+# Ejecución: uvicorn asva_core_api:app --reload
+
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+from web3 import Web3
+from web3.exceptions import TransactionNotFound
+import os
+from dotenv import load_dotenv
+import time
+
+# Carga variables de entorno (desde el archivo .env)
+load_dotenv()
+
+# --- CONFIGURACIÓN DE LA BLOCKCHAIN Y CONSTANTES CRÍTICAS ---
+
+# Obtener URL del nodo RPC de forma segura (para lectura de la blockchain)
+BNB_RPC_URL = os.getenv("BNB_RPC_URL", "https://bsc-dataseed.binance.org/") 
+# Dirección del Contrato Gateway desplegado
+ASVA_PAYMENT_GATEWAY_ADDRESS = os.getenv("ASVA_PAYMENT_GATEWAY_ADDRESS", "0x0000000000000000000000000000000000000000") # <--- ¡REEMPLAZAR!
+
+# ABIs simplificados para que Web3.py pueda leer los eventos
+PAYMENT_GATEWAY_ABI = [
+    "event ServiceSessionPaid(address indexed user, uint256 tokensUsed, uint256 burnedAmount, uint256 treasuryAmount, uint256 timestamp)"
+]
+
+# Inicialización de Web3.py
+w3 = Web3(Web3.HTTPProvider(BNB_RPC_URL))
+if not w3.is_connected():
+    print("FATAL: No se pudo conectar al nodo RPC de BNB Chain. El servicio de verificación fallará.")
+
+app = FastAPI(
+    title="ASVA Core API",
+    version="1.0.0",
+    description="Servidor de IA con verificación criptográfica de pago Pay-to-Burn en BNB Chain."
+)
+
+# --- MODELO DE DATOS (ESQUEMA Pydantic) ---
+
+class PromptRequest(BaseModel):
+    """Define el formato estricto de los datos que debe enviar el frontend."""
+    wallet: str
+    prompt: str
+    level: int
+    transactionHash: str
+
+# --- FUNCIÓN CRÍTICA: VERIFICACIÓN DE PAGO EN LA BLOCKCHAIN ---
+
+def verify_payment_on_chain(request: PromptRequest) -> bool:
+    """
+    Verifica que la transacción existe, es exitosa y emitió el evento de pago/quema.
+    """
+    try:
+        # 1. Obtener recibo de la transacción
+        receipt = w3.eth.get_transaction_receipt(request.transactionHash)
+        
+        # 2. Verificaciones básicas de la TX
+        if receipt is None:
+            raise TransactionNotFound("Recibo no encontrado (TX pendiente o Hash inválido).")
+        if receipt.status != 1:
+            raise Exception("La transacción falló o revirtió en la blockchain.")
+        if receipt.to.lower() != ASVA_PAYMENT_GATEWAY_ADDRESS.lower():
+            raise Exception("La transacción no fue dirigida al Contrato Gateway correcto.")
+            
+        # 3. VERIFICACIÓN DEL EVENTO (Prueba de Quema)
+        gateway_contract = w3.eth.contract(address=ASVA_PAYMENT_GATEWAY_ADDRESS, abi=PAYMENT_GATEWAY_ABI)
+        logs = gateway_contract.events.ServiceSessionPaid().process_receipt(receipt)
+        
+        if not logs:
+            raise Exception("El evento 'ServiceSessionPaid' no se encontró. El token no fue quemado.")
+
+        # 4. Verificación de identidad y monto
+        log_args = logs[0]['args']
+        if log_args['user'].lower() != request.wallet.lower():
+             raise Exception("El pagador en el evento no coincide con la billetera solicitante.")
+
+        # (Opcional: Si se desea una verificación estricta del monto, descomentar y ajustar la tolerancia)
+        # expected_amount_wei = w3.to_wei(request.level, 'ether')
+        # if log_args['tokensUsed'] < expected_amount_wei:
+        #      raise Exception("El monto pagado es insuficiente.")
+        
+        return True
+
+    except TransactionNotFound:
+        # Esto puede ocurrir si la TX es reciente y el nodo no la ha indexado.
+        raise HTTPException(
+            status_code=409, # Conflict
+            detail="Transacción pendiente o no encontrada. Intente nuevamente en unos segundos."
+        )
+    except Exception as e:
+        print(f"Error de verificación: {e}")
+        return False
+
+# --- FUNCIÓN DE PROCESAMIENTO DE IA (SIMULACIÓN DE LLM REAL) ---
+
+def process_ai_request(prompt: str, level: int) -> str:
+    """
+    INTEGRACIÓN REAL DE LLM: En producción, aquí se haría la llamada API al motor de IA (ej. OpenAI).
+    """
+    if level == 750:
+        # Simulación de llamada a OpenAI/Azure/etc. con mayor latencia (mayor coste)
+        time.sleep(2.5) 
+        # Reemplace esto con: response = openai.Completion.create(model="gpt-4", prompt=prompt)
+        return f"ASVA (Nivel PREMIUM): Análisis de alta fidelidad completado. Resultado para '{prompt[:20]}...'"
+    elif level == 200:
+        time.sleep(1)
+        return "ASVA (Nivel Intermedio): Respuesta generada con modelo de capacidad media."
+    else:
+        return "ASVA (Nivel Básico): Respuesta rápida y concisa."
+
+# --- ENDPOINT PRINCIPAL DE LA API ---
+
+@app.post("/v1/process-prompt", status_code=status.HTTP_200_OK)
+async def process_prompt(request: PromptRequest):
+    """
+    Endpoint principal para recibir prompts y activar el servicio.
+    """
+    
+    # 1. VERIFICACIÓN DE SEGURIDAD (LA PRUEBA DE FUEGO)
+    if not verify_payment_on_chain(request):
+        # Si la verificación falla (TX inválida, insuficiente o evento no emitido)
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED, 
+            detail="Pago de ASV-A no verificado en la BNB Chain. Se requiere una transacción de quema válida."
+        )
+
+    # 2. PROCESAMIENTO DEL PROMPT
+    ai_response = process_ai_request(request.prompt, request.level)
+
+    # 3. RESPUESTA EXITOSA
+    return {
+        "status": "success",
+        "message": "Solicitud procesada con éxito.",
+        "level_used": request.level,
+        "ai_result": ai_response,
+        "wallet": request.wallet
+    }

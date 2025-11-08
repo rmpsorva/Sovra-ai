@@ -1,3 +1,86 @@
+// asva_web3_app.js - Lógica Principal del Frontend Web3 con API Call
+
+// ... [INICIO: Código de Configuración de Constantes, ABIs, y Variables Globales - SIN CAMBIOS] ...
+
+// --- NUEVA CONSTANTE: Endpoint de nuestro backend de IA ---
+// *** IMPORTANTE: REEMPLAZAR CON LA URL REAL DE SU SERVIDOR DE ASVA CORE ***
+const ASVA_AI_API_ENDPOINT = 'https://api.asva.ai/v1/process-prompt'; 
+
+// ... [Funciones connectWallet, loadBalances, handlers, resetUI - SIN CAMBIOS] ...
+
+
+// --- FUNCIÓN PRINCIPAL DE PAGO, QUEMA Y LLAMADA A API (INTERACCIÓN CRÍTICA) ---
+
+async function initiateASVAPayment() {
+    if (!userAddress || selectedCost === 0 || !aiPrompt.value) {
+        alert("¡Faltan datos! Conecta, selecciona un nivel y escribe tu solicitud.");
+        return;
+    }
+
+    try {
+        executeBtn.disabled = true;
+        executeBtn.textContent = 'Procesando... (Aprobación)';
+
+        const amountInWei = ethers.utils.parseUnits(selectedCost.toString(), ASVADecimals);
+        
+        // 1. APROBACIÓN (Permitir que el Gateway gaste ASV-A)
+        const approveTx = await ASVATokenContract.approve(ASVA_PAYMENT_GATEWAY_ADDRESS, amountInWei);
+        await approveTx.wait();
+        
+        executeBtn.textContent = 'Procesando... (Pago y Quema)';
+
+        // 2. PAGO (Llamada al Contrato que ejecuta el 90% BURN)
+        const payTx = await ASVAPaymentGatewayContract.payForService(amountInWei);
+        await payTx.wait();
+        
+        // 3. CONFIRMACIÓN Y ACTIVACIÓN (UI y Blockchain)
+        serviceLevelDisplay.textContent = `NIVEL ${selectedCost} ASV-A ACTIVO`;
+        serviceLevelDisplay.style.display = 'block';
+        loadBalances(); // Refrescar el balance y el total quemado
+        
+        // 4. LLAMADA CRÍTICA AL BACKEND DE LA IA (ASVA CORE)
+        executeBtn.textContent = 'ASVA está pensando...';
+        
+        const promptData = {
+            wallet: userAddress,
+            prompt: aiPrompt.value,
+            level: selectedCost,
+            // Enviamos el hash de la transacción para que el backend pueda verificar el pago de forma redundante
+            transactionHash: payTx.hash 
+        };
+
+        const apiResponse = await fetch(ASVA_AI_API_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Opcional: Si el backend requiere una clave API (API Key) del frontend
+                // 'X-ASVA-API-KEY': 'tu_clave_de_frontend_aqui' 
+            },
+            body: JSON.stringify(promptData)
+        });
+
+        if (!apiResponse.ok) {
+            throw new Error(`Error en el servidor ASVA Core: ${apiResponse.statusText}`);
+        }
+
+        const result = await apiResponse.json();
+        
+        // 5. MANEJO DE LA RESPUESTA DE LA IA
+        alert(`¡Servicio ASVA completado! Respuesta de la IA: ${result.message || 'Verifique la consola para el análisis completo.'}`);
+        console.log("Respuesta Completa de ASVA AI:", result);
+
+        executeBtn.textContent = 'EJECUTAR ASVA';
+        executeBtn.disabled = false;
+        
+    } catch (error) {
+        console.error("Error crítico en el flujo ASVA:", error);
+        alert(`Error: El servicio falló. ${error.message}.`);
+        executeBtn.textContent = 'EJECUTAR ASVA';
+        executeBtn.disabled = false;
+    }
+}
+
+// ... [FIN: Escuchadores de Eventos e Inicialización - SIN CAMBIOS] ...
 // ====================================================================
 // ========================= ASV DApp UNIFICADA =========================
 // ====================================================================

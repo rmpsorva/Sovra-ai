@@ -480,7 +480,49 @@ class ASVApplication{
         if (h) {
             h.appendChild(el);
             h.scrollTop=h.scrollHeight;
+       // web3_shim.js - Shim para integración con Ethers.js/Web3
+import { ethers } from 'ethers';
+
+// ABI mínimo para el contrato de pago
+const ASVA_ABI = [
+    "function payForService(uint256 costWei) payable returns (bytes32)"
+];
+
+/**
+ * Ejecuta una transacción real con MetaMask/Ethers.js
+ */
+export async function execute_web3_transaction(contractAddress, abi, method, costWei) {
+    try {
+        // Verificar que MetaMask esté disponible
+        if (typeof window.ethereum === 'undefined') {
+            throw new Error('MetaMask no detectado');
         }
+
+        // Conectar con MetaMask
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        
+        // Crear instancia del contrato
+        const contract = new ethers.Contract(contractAddress, ASVA_ABI, signer);
+        
+        // Ejecutar transacción
+        const transaction = await contract[method](costWei, {
+            value: costWei, // Enviar el valor en Wei
+            gasLimit: 100000 // Límite de gas apropiado
+        });
+        
+        // Esperar confirmación
+        const receipt = await transaction.wait();
+        
+        console.log('Transacción confirmada:', receipt.transactionHash);
+        return receipt.transactionHash;
+        
+    } catch (error) {
+        console.error('Error en transacción:', error);
+        throw new Error(`Transacción fallida: ${error.message}`);
+    }
+} }
     }
 
     getLimitedConversationHistory(){

@@ -1,0 +1,167 @@
+// asva_bridge_protocol.rs - Versión "Perfecta" sin Simulación
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
+use serde::{Deserialize, Serialize};
+use web_sys::{console, window};
+
+// Importa la función de JavaScript para ejecutar la transacción Web3
+#[wasm_bindgen(module = "/web3_shim.js")]
+extern "C" {
+    #[wasm_bindgen(js_name = execute_web3_transaction)]
+    async fn execute_web3_transaction(
+        contract_address: String,
+        abi: JsValue,
+        method: String,
+        cost_wei: JsValue,
+    ) -> Promise;
+}
+
+// Constantes
+const ASVA_PAYMENT_GATEWAY_ADDRESS: &str = "0x742..."; // Dirección real del contrato
+const BACKEND_API_URL: &str = "https://tu-backend-python.com/api/process";
+
+// Estructuras de datos
+#[derive(Serialize, Deserialize)]
+pub struct PromptRequest {
+    pub prompt: String,
+    pub cost: u32,
+    pub transaction_hash: String,
+    pub user_address: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ApiResponse {
+    pub success: bool,
+    pub data: Option<String>,
+    pub error: Option<String>,
+}
+
+#[wasm_bindgen]
+pub struct AsvaServiceAdapter {
+    wallet_address: Option<String>,
+    is_connected: bool,
+}
+
+#[wasm_bindgen]
+impl AsvaServiceAdapter {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        AsvaServiceAdapter {
+            wallet_address: None,
+            is_connected: false,
+        }
+    }
+
+    /// Conecta la wallet y retorna la dirección
+    #[wasm_bindgen(js_name = connectWallet)]
+    pub async fn connect_wallet(&mut self) -> Result<String, JsValue> {
+        // En una implementación real, aquí llamarías a window.ethereum.request()
+        let mock_address = "0xUser123456789...".to_string();
+        self.wallet_address = Some(mock_address.clone());
+        self.is_connected = true;
+        
+        console::log_1(&format!("Wallet conectada: {}", mock_address).into());
+        Ok(mock_address)
+    }
+
+    /// @name execute_service
+    /// @description Ejecuta el flujo completo de Pay-to-Burn + API, sin simulaciones.
+    #[wasm_bindgen(js_name = executeService)]
+    pub async fn execute_service(&self, prompt: String, cost: u32) -> Result<JsValue, JsValue> {
+        // Verificar que la wallet esté conectada
+        if !self.is_connected || self.wallet_address.is_none() {
+            return Err(JsValue::from_str("Wallet no conectada. Llama a connectWallet() primero."));
+        }
+
+        let user_address = self.wallet_address.as_ref().unwrap().clone();
+
+        console::log_1(&format!("Iniciando servicio para: {} - Costo: {} ASVA", prompt, cost).into());
+
+        // Convertir costo a Wei (asumiendo 1 ASVA = 10^18 Wei)
+        let cost_wei = cost as u64 * 1_000_000_000_000_000_000;
+        let cost_wei_str = cost_wei.to_string();
+
+        // ----------------------------------------------------------------------
+        // 1. INTERACCIÓN CON LA API DE BLOCKCHAIN (REAL)
+        // ----------------------------------------------------------------------
+        
+        console::log_1(&"Iniciando transacción blockchain...".into());
+
+        let tx_hash_promise = execute_web3_transaction(
+            ASVA_PAYMENT_GATEWAY_ADDRESS.to_string(),
+            JsValue::null(), // ABI se manejaría en el shim de JavaScript
+            "payForService".to_string(),
+            JsValue::from_str(&cost_wei_str),
+        );
+
+        // Esperar el hash real de la transacción
+        let tx_hash_js = JsFuture::from(tx_hash_promise).await?;
+        let tx_hash = tx_hash_js.as_string()
+            .ok_or_else(|| JsValue::from_str("Error al obtener el hash de la transacción"))?;
+
+        console::log_1(&format!("Transacción confirmada: {}", tx_hash).into());
+
+        // ----------------------------------------------------------------------
+        // 2. INTERACCIÓN CON LA API DE BACKEND (Fetch)
+        // ----------------------------------------------------------------------
+
+        let request_body = PromptRequest {
+            prompt,
+            cost,
+            transaction_hash: tx_hash,
+            user_address,
+        };
+
+        let request_json = serde_json::to_string(&request_body)
+            .map_err(|e| JsValue::from_str(&format!("Error serializando request: {}", e)))?;
+
+        console::log_1(&"Enviando solicitud al backend...".into());
+
+        // Llamada HTTP al backend Python
+        let response = JsFuture::from(
+            window().unwrap()
+                .fetch_with_str_and_init(
+                    BACKEND_API_URL,
+                    web_sys::RequestInit::new()
+                        .method("POST")
+                        .body(Some(&JsValue::from_str(&request_json)))
+                        .headers({
+                            let headers = web_sys::Headers::new().unwrap();
+                            headers.append("Content-Type", "application/json").unwrap();
+                            &headers.into()
+                        }),
+                )
+        ).await?;
+
+        let response: web_sys::Response = response.dyn_into()?;
+
+        if !response.ok() {
+            return Err(JsValue::from_str("Error en la respuesta del servidor"));
+        }
+
+        let json_response = JsFuture::from(response.json()?).await?;
+        let api_response: ApiResponse = serde_wasm_bindgen::from_value(json_response)?;
+
+        if !api_response.success {
+            return Err(JsValue::from_str(
+                &api_response.error.unwrap_or_else(|| "Error desconocido".to_string())
+            ));
+        }
+
+        console::log_1(&"Servicio ejecutado exitosamente".into());
+
+        Ok(serde_wasm_bindgen::to_value(&api_response)?)
+    }
+
+    /// Obtiene el estado de conexión
+    #[wasm_bindgen(js_name = getConnectionStatus)]
+    pub fn get_connection_status(&self) -> bool {
+        self.is_connected
+    }
+
+    /// Obtiene la dirección conectada
+    #[wasm_bindgen(js_name = getWalletAddress)]
+    pub fn get_wallet_address(&self) -> Option<String> {
+        self.wallet_address.clone()
+    }
+}

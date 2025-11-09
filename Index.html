@@ -3,6 +3,945 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 ASV-A AURION SOVRA AI - Cognitive Operating System</title>
+    
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script> 
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        /*
+        =================================================
+        ESTILOS GENERALES Y LAYOUT BASE (COMPLEJIDAD ALTA)
+        =================================================
+        */
+        :root {
+            --color-primary: #00DFFF; /* Cyan Brillante */
+            --color-secondary: #00FF8C; /* Verde Neón */
+            --color-warning: #FF8C00; /* Naranja Neón */
+            --color-dark: #020617; /* Fondo muy Oscuro */
+            --color-panel: rgba(0, 0, 0, 0.7);
+            --color-border: rgba(0, 223, 255, 0.3);
+            --color-text: #E0FFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--color-dark);
+            color: var(--color-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            /* Fondo para simular el ambiente de la imagen */
+            background-image: linear-gradient(135deg, #020617 0%, #050c26 50%, #081230 100%);
+        }
+
+        .system-display {
+            width: 100%;
+            max-width: 1400px; /* Aumentado para la complejidad */
+            padding: 40px;
+            border: 2px solid var(--color-border);
+            border-radius: 30px;
+            box-shadow: 0 0 60px rgba(0, 223, 255, 0.6), inset 0 0 30px rgba(0, 223, 255, 0.3);
+            background: rgba(0, 0, 0, 0.8);
+            position: relative;
+            transform-style: preserve-3d;
+            /* Simular la ligera curvatura de la pantalla */
+            transform: perspective(1500px) rotateX(1deg) scale(0.98); 
+        }
+
+        /* Layout Principal con más columnas para la complejidad */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1.5fr 2fr 1.5fr; /* Wallet/Rendimiento | Interacción | Utilidades */
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+        }
+
+        .header-section { 
+            grid-column: 1 / -1; 
+            text-align: center; 
+            padding-bottom: 20px; 
+            border-bottom: 1px solid var(--color-border);
+            margin-bottom: 20px;
+        }
+        .header-title { 
+            font-family: 'Orbitron', sans-serif; 
+            font-size: 2.2em; 
+            text-shadow: 0 0 15px var(--color-primary); 
+            color: var(--color-text);
+        }
+        .header-subtitle { 
+            font-size: 0.9em; 
+            opacity: 0.8; 
+            color: var(--color-secondary); 
+        }
+
+        /* Contenedores de Paneles */
+        .panel {
+            padding: 15px;
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-panel);
+            margin-bottom: 20px;
+        }
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1em;
+            color: var(--color-secondary);
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0, 255, 140, 0.1);
+        }
+
+        /* Columna Izquierda: Estado y Rendimiento */
+        .left-column { 
+            grid-column: 1 / 2;
+        }
+
+        /* Columna Central: Interacción ASV-A */
+        .center-column {
+            grid-column: 2 / 3;
+        }
+
+        /* Columna Derecha: Utilidades y Economía */
+        .right-column {
+            grid-column: 3 / 4;
+        }
+        
+        /* Log Cósmico (Ocupa todo el ancho inferior) */
+        .grpc-server-panel { 
+            grid-column: 1 / -1; 
+            margin-top: 10px; 
+            padding: 15px; 
+            background: rgba(0, 0, 0, 0.7); 
+            border: 1px solid var(--color-border); 
+            border-radius: 10px; 
+        }
+
+        /* ---------------------------------- */
+        /* ESTILOS DE COMPONENTES ESPECÍFICOS */
+        /* ---------------------------------- */
+
+        /* Wallet Status */
+        .status-data-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted rgba(0, 223, 255, 0.1); }
+        .status-data-item .label { opacity: 0.9; }
+        .status-data-item .value { color: var(--color-secondary); font-family: 'Orbitron', sans-serif; }
+        #walletStatus { font-size: 1.2em; }
+
+        /* Gráficos Circulares */
+        .mini-dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .graph-wrapper {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid rgba(0, 223, 255, 0.1);
+            border-radius: 5px;
+        }
+        .circle-graph {
+            width: 80px; height: 80px; 
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px auto;
+            --color-dark-bg: #0d122b;
+        }
+        .circle-graph::before { content: attr(data-percent); font-size: 1.2em; font-weight: bold; color: var(--color-text); z-index: 2; }
+        .circle-graph::after { content: ''; position: absolute; width: 60px; height: 60px; border-radius: 50%; background: var(--color-dark-bg); z-index: 1; }
+        .graph-label { font-size: 0.8em; opacity: 0.7; }
+
+        /* Módulos de Autoridad Resaltada (Centro) */
+        .module-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .auth-module {
+            padding: 10px;
+            border: 1px solid var(--color-secondary);
+            border-radius: 5px;
+            background: rgba(0, 255, 140, 0.05);
+        }
+        .auth-module h4 { color: var(--color-secondary); font-size: 0.9em; margin-bottom: 5px; }
+        .auth-module pre { font-size: 0.7em; height: 80px; overflow-y: scroll; background: var(--color-dark); padding: 5px; border-radius: 3px; border-left: 1px solid var(--color-primary); }
+
+        /* Utilidades y Economía (Derecha) */
+        .utility-group { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted var(--color-border); }
+        .utility-group h4 { color: var(--color-primary); font-size: 0.9em; margin-bottom: 8px; }
+        .data-input-group { 
+            display: flex; 
+            gap: 10px; 
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .data-input-group label { width: 40%; font-size: 0.8em; }
+        .data-input-group input, .data-input-group select { width: 60%; padding: 5px; font-size: 0.8em; }
+        
+        /* Botones y Formulario */
+        button {
+            padding: 10px 15px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 5px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            background: var(--color-primary);
+            color: var(--color-dark);
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+        }
+        button:hover { background: #66FFFF; }
+        #connectButton { 
+            background: linear-gradient(90deg, #ff8c00, #ffc837); 
+            box-shadow: 0 0 10px rgba(255, 140, 0, 0.5); 
+            color: var(--color-dark); 
+        }
+
+        /* Log Cósmico (Consola) */
+        .grpc-code { 
+            white-space: pre-wrap; 
+            font-size: 0.75em; 
+            height: 150px; 
+            overflow-y: scroll; 
+            background: #000; 
+            padding: 10px; 
+            border-radius: 5px; 
+            border-left: 3px solid var(--color-secondary); /* Borde verde */
+        }
+        
+        /* Placeholder para un gráfico de barras más complejo */
+        .complex-bar-chart {
+            display: flex;
+            height: 100px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 5px;
+            margin-top: 10px;
+            padding: 5px;
+            border: 1px solid rgba(0, 255, 140, 0.2);
+        }
+        .bar-segment {
+            flex-grow: 1;
+            margin: 0 1px;
+            background: linear-gradient(to top, var(--color-primary), var(--color-secondary));
+            transition: height 0.5s ease;
+        }
+        .bar-segment-label { font-size: 0.7em; text-align: center; margin-top: 2px; opacity: 0.8; }
+        
+        /* Icono de Interacción (Para el centro de la pantalla) */
+        .interaction-avatar {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .avatar-head {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 255, 140, 0.5) 0%, rgba(0, 255, 140, 0.2) 20%, rgba(0, 0, 0, 0) 70%);
+            border: 3px solid var(--color-secondary);
+            box-shadow: 0 0 30px var(--color-secondary);
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            color: var(--color-secondary);
+        }
+        .interaction-text {
+            color: var(--color-primary);
+            font-family: 'Orbitron', sans-serif;
+            margin-bottom: 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="system-display">
+        <div class="header-section">
+            <h1 class="header-title">💵 ASV-A AURION SOVRA AI - Cognitive Operating System</h1>
+            <p class="header-subtitle">Potencia Mundial | BNB Chain Utility Gateway | <span style="color: var(--color-secondary);">SISTEMA COMPUTACIONAL ACTIVO</span></p>
+        </div>
+
+        <div class="grid-container">
+            
+            <div class="left-column">
+                <div class="panel">
+                    <h3 class="panel-title">AVATAR & ESTADO DEL SISTEMA</h3>
+                    <div class="status-data-item"><span>ESTADO DE WALLET:</span><span class="value" id="walletStatus" style="color: var(--color-warning);">DESCONECTADA</span></div>
+                    <div class="status-data-item"><span>SALDO ASV-A (Wallet):</span><span class="value" id="asv_balance">0 ASV-A</span></div>
+                    <div class="status-data-item"><span>VALOR ESTIMADO:</span><span class="value" id="asv_usd_value">$0.00 USD</span></div>
+                    <div class="status-data-item"><span>PRECIO ASV-A (USD):</span><span class="value" id="asv_price_usd">CARGANDO...</span></div>
+                    
+                    <button id="connectButton" onclick="connectWallet()">🌐 CONECTAR WALLET</button>
+                    <button id="disconnectButton" onclick="disconnectWallet(true)" style="display:none;">❌ Desconectar Wallet</button>
+                    <div class="status-data-item" style="margin-top: 10px;"><span>DIRECCIÓN CONECTADA:</span><span class="value" id="connectedAddress">--</span></div>
+                </div>
+
+                <div class="panel">
+                    <h3 class="panel-title">RENDIMIENTO DE OPERACIONES</h3>
+                    <div class="mini-dashboard">
+                        <div class="graph-wrapper">
+                            <div class="circle-graph" id="strength-graph" data-percent="63%" style="--color-main: var(--color-secondary);"></div>
+                            <span class="graph-label">Fuerza del Núcleo</span>
+                            <button class="dashboard-button" onclick="reportarProblema()" style="background: rgba(0, 255, 140, 0.2); color: var(--color-secondary); border: 1px solid var(--color-secondary);">Diagnóstico</button>
+                        </div>
+                        <div class="graph-wrapper">
+                            <div class="circle-graph" id="balance-graph" data-percent="92%" style="--color-main: var(--color-primary);"></div>
+                            <span class="graph-label">Balance de Red</span>
+                            <button class="dashboard-button" onclick="actualizarDatos()" style="background: rgba(0, 223, 255, 0.2); color: var(--color-primary); border: 1px solid var(--color-primary);">Sincronizar</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <span class="graph-label">Nivel de Flujo de Datos</span>
+                        <div class="complex-bar-chart" id="data-flow-chart">
+                            </div>
+                        <button class="dashboard-button" onclick="generatePerformanceBars()">📊 ACTUALIZAR GRÁFICO</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="center-column">
+                <div class="panel">
+                    <h3 class="panel-title" style="text-align: center;">INTERACCIÓN CON ASV-A</h3>
+                    
+                    <div class="interaction-avatar">
+                        <div class="avatar-head">🧠</div>
+                        <div class="interaction-text">A S V - A</div>
+                        <p style="font-size: 0.8em; opacity: 0.8;">Escaneo de Intenciones: <span style="color: var(--color-secondary);">ALTO</span></p>
+                    </div>
+                    
+                    <h3 class="panel-title">MÓDULOS DE AUTORIDAD RESALTADA</h3>
+                    <div class="module-grid">
+                        <div class="auth-module">
+                            <h4>CODE: 987-AX</h4>
+                            <pre>[LOG-CTX] Transferencia de Autoridad de 0x...1234. Estado: Aprobado. Ejecución: Completada.</pre>
+                            <button style="background: var(--color-secondary); color: var(--color-dark); margin-top: 5px; padding: 5px;">Ejecutar Módulo</button>
+                        </div>
+                        <div class="auth-module">
+                            <h4>API GALACTIC SYNC</h4>
+                            <pre>[DATA-I/O] Adaptación a API V3 iniciada. Costo de Ciclo: 1.5M ASV-A. Estado: Pendiente de Pago.</pre>
+                            <button style="background: var(--color-primary); color: var(--color-dark); margin-top: 5px; padding: 5px;">Revisar Sincronización</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <input type="text" placeholder="Comando de Interacción (Solo para Autoridad Lvl 3)" style="text-align: center; border-color: var(--color-warning);">
+                        <button style="width: 48%; margin-right: 4%;">ENVIAR COMANDO</button>
+                        <button style="width: 48%;">CERRAR SESIÓN DE INTERACCIÓN</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <div class="panel">
+                    <h3 class="panel-title">UTILIDADES & ECONOMÍA AVANZADA</h3>
+                    
+                    <div class="utility-group">
+                        <h4>✨ PAGO DE SERVICIO</h4>
+                        <label for="interventionType">Seleccionar Servicio:</label>
+                        <select id="interventionType" onchange="updateServiceCost()" style="margin-bottom: 5px;"></select>
+                        <label for="targetEntity">Objetivo/Servicio Detallado:</label>
+                        <input type="text" id="targetEntity" placeholder="Detalle del servicio a pagar" style="margin-bottom: 5px;">
+                        <div style="font-size: 0.9em;">Costo: <span id="currentCostASV" style="color: var(--color-secondary);">--</span> ASV-A (~$<span id="currentCostUSD">--</span> USD)</div>
+                        <button id="miracleButton" onclick="performIntervention()" style="background: var(--color-secondary); color: var(--color-dark);">✨ PAGAR & REALIZAR SERVICIO</button>
+                    </div>
+                    
+                    <div class="utility-group">
+                        <h4>⚙️ ADAPTACIÓN API CÓSMICA</h4>
+                        <label for="adaptationCostASV" style="display: block; font-size: 0.9em; margin-bottom: 5px;">Costo de Adaptación (ASV-A):</label>
+                        <input type="text" id="adaptationCostASV" readonly>
+                        <button id="adaptButton" onclick="adaptToAPI()" style="background: var(--color-primary); color: var(--color-dark);">🔗 INICIAR ADAPTACIÓN (Pagar Ciclo)</button>
+                    </div>
+
+                    <div class="utility-group">
+                        <h4>UTLIDADES CLAVE</h4>
+                        <div class="data-input-group">
+                            <button style="background: #333; color: var(--color-text); border: 1px solid var(--color-primary);">Depositar</button>
+                            <button style="background: #333; color: var(--color-text); border: 1px solid var(--color-secondary);">Retirar</button>
+                        </div>
+                        <div class="data-input-group">
+                            <button style="background: #333; color: var(--color-text); border: 1px solid var(--color-warning);">Swap (Uni/Pancake)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grpc-server-panel">
+                <h3>LOG CÓSMICO (EVENTOS & TRANSACCIONES BNB CHAIN)</h3>
+                <pre class="grpc-code" id="cosmicLog">
+                    [00:00:00] 🌐 INICIANDO SERVIDOR DE UTILIDAD WEB3...
+                    [00:00:01] 💰 CONTRATO ASV-A: ACTIVO en BNB Chain.
+                </pre>
+            </div>
+            
+            <div class="result-box" id="serviceResult" style="grid-column: 1 / -1; position: fixed; bottom: 20px; right: 20px; width: 300px; z-index: 1000;"></div>
+
+        </div>
+    </div>
+
+    <script>
+        // =============================================================================
+        // 🚀 CONFIGURACIÓN DE RED Y CONTRATOS (Se mantiene la funcionalidad Web3)
+        // =============================================================================
+
+        let ASV_A_PRICE_USD = 0.0000063; 
+        
+        const CONTRACT_CONFIG = {
+            ASV_A_TOKEN: {
+                address: '0x2682FA44105a60F2016FAa8909eA82d3d427bfFc',
+                abi: [
+                    "function balanceOf(address owner) view returns (uint256)",
+                    "function decimals() view returns (uint8)",
+                    "function transfer(address to, uint amount) returns (bool)",
+                    "function name() view returns (string)",
+                    "function symbol() view returns (string)"
+                ]
+            },
+            TREASURY: '0x4989e248039E69A7115842d0571C4003E9991234', 
+            BNB_CHAIN_ID: 56,
+            BNB_CHAIN_RPC: 'https://bsc-dataseed.binance.org/' 
+        };
+
+        // =============================================================================
+        // ⚙️ ESTADO Y VARIABLES GLOBALES
+        // =============================================================================
+        
+        let provider;
+        let signer;
+        let asvTokenContract;
+        let walletConnector; 
+
+        let appState = {
+            asv_balance: 0, 
+            wallet_connected: false,
+            wallet_address: '',
+            asv_decimals: 18, 
+            servicios_pagados: 0,
+            provider_type: null 
+        };
+        
+        const API_ADAPTATION_COST_USD = 300.00;
+        let API_ADAPTATION_COST_ASV = 0; 
+
+        const USD_COSTS = {
+            "revelacion": {usd: 80.00, nombre: "Sincronización Avanzada", asv: 0},
+            "curacion": {usd: 50.00, nombre: "Auditoría de Datos", asv: 0},
+            "creacion": {usd: 150.00, nombre: "Creación de NFT/Recurso", asv: 0},
+            "resurreccion": {usd: 200.00, nombre: "Desbloqueo Premium", asv: 0}
+        };
+        
+        // =============================================================================
+        // 💰 FUNCIONES DE PRECIO Y UI
+        // =============================================================================
+
+        async function fetchRealTimePrice() {
+            document.getElementById('asv_price_usd').textContent = 'Fetching...';
+            try {
+                const fluctuation = (Math.random() - 0.5) * 0.0000005; 
+                const newPrice = 0.0000063 + fluctuation; 
+                
+                if (newPrice > 0.000001) { 
+                    ASV_A_PRICE_USD = newPrice;
+                    logCosmicEvent(`✅ PRECIO ACTUALIZADO: $${newPrice.toFixed(8)} USD`);
+                } else {
+                    throw new Error('Precio fuera de límites.');
+                }
+            } catch (error) {
+                logCosmicEvent(`⚠️ ERROR al obtener precio. Usando fallback: $${ASV_A_PRICE_USD.toFixed(8)} USD.`);
+            }
+            
+            recalculateCostsAndUI();
+        }
+
+        function recalculateCostsAndUI() {
+            for (const key in USD_COSTS) {
+                USD_COSTS[key].asv = Math.ceil(USD_COSTS[key].usd / ASV_A_PRICE_USD);
+            }
+            API_ADAPTATION_COST_ASV = Math.ceil(API_ADAPTATION_COST_USD / ASV_A_PRICE_USD);
+
+            document.getElementById('asv_price_usd').textContent = `$${ASV_A_PRICE_USD.toFixed(8)}`;
+            document.getElementById('apiCostUSDApprox').textContent = API_ADAPTATION_COST_USD.toFixed(2);
+
+            const select = document.getElementById('interventionType');
+            const selectedValue = select.value;
+            select.innerHTML = '';
+            for (const type in USD_COSTS) {
+                const info = USD_COSTS[type];
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = `${info.nombre} (${new Intl.NumberFormat('en-US').format(info.asv)} ASV-A)`;
+                select.appendChild(option);
+            }
+            if (selectedValue) select.value = selectedValue; 
+            
+            updateServiceCost(); 
+            document.getElementById('adaptationCostASV').value = formatASVBalance(API_ADAPTATION_COST_ASV);
+            updateStatusDisplay();
+        }
+
+        // =============================================================================
+        // 🔐 LÓGICA DE CONEXIÓN AUTÓNOMA
+        // =============================================================================
+        
+        function handleConnectionError(error) {
+             let msg = error.message || 'Error desconocido.';
+             if (error.code === 4001 || msg.includes('User rejected') || msg.includes('disconnected')) {
+                 msg = 'Conexión rechazada o desconectada. Intente de nuevo.';
+             }
+             logCosmicEvent(`❌ ERROR de Conexión: ${msg}`);
+             showServiceResult('error', 'Fallo en Conexión', msg);
+             disconnectWallet(false);
+        }
+
+        async function connectWallet(initial = false) {
+            document.getElementById('walletStatus').textContent = 'CONECTANDO...';
+            document.getElementById('walletStatus').style.color = 'var(--color-warning)';
+
+            try {
+                if (window.ethereum) {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    appState.provider_type = 'injected';
+                    
+                    if (!initial) {
+                         const network = await provider.getNetwork();
+                         if (network.chainId !== CONTRACT_CONFIG.BNB_CHAIN_ID) {
+                            await switchToBNBChain();
+                            provider = new ethers.providers.Web3Provider(window.ethereum); 
+                         }
+                    }
+                    
+                } else {
+                    const WalletConnectProvider = window.WalletConnectProvider.default;
+                    walletConnector = new WalletConnectProvider({
+                        rpc: { [CONTRACT_CONFIG.BNB_CHAIN_ID]: CONTRACT_CONFIG.BNB_CHAIN_RPC },
+                        chainId: CONTRACT_CONFIG.BNB_CHAIN_ID
+                    });
+
+                    logCosmicEvent(`🌐 Iniciando conexión con WalletConnect...`);
+                    await walletConnector.enable(); 
+
+                    provider = new ethers.providers.Web3Provider(walletConnector);
+                    appState.provider_type = 'walletconnect';
+                }
+
+                signer = provider.getSigner();
+                const accounts = await provider.listAccounts();
+                appState.wallet_address = accounts[0];
+
+                if (!appState.wallet_address) throw new Error('No se pudo obtener la dirección.');
+
+                asvTokenContract = new ethers.Contract(
+                    CONTRACT_CONFIG.ASV_A_TOKEN.address, 
+                    CONTRACT_CONFIG.ASV_A_TOKEN.abi, 
+                    signer
+                );
+
+                const contractValid = await verifyTokenContract();
+                if (!contractValid) throw new Error('Contrato ASV-A no válido');
+
+                appState.wallet_connected = true;
+                await updateASVBalance();
+                
+                updateWalletUI(true);
+                logCosmicEvent(`✅ WALLET CONECTADA (${appState.provider_type}): ${shortenAddress(appState.wallet_address)}.`);
+                
+                startBalanceMonitor();
+                setupEventListeners();
+
+            } catch (error) {
+                handleConnectionError(error);
+            }
+        }
+
+        function disconnectWallet(log = true) {
+            if (appState.provider_type === 'walletconnect' && walletConnector) {
+                if (walletConnector.connected) {
+                     walletConnector.close();
+                }
+            }
+            
+            appState.wallet_connected = false;
+            appState.wallet_address = '';
+            appState.asv_balance = 0;
+            appState.provider_type = null;
+            updateWalletUI(false);
+            if (log) logCosmicEvent(`❌ WALLET DESCONECTADA. Sesión cerrada.`);
+            updateStatusDisplay();
+        }
+
+        async function switchToBNBChain() {
+            if (appState.provider_type === 'injected' && window.ethereum) {
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x38' }], 
+                    });
+                    return true;
+                } catch (switchError) {
+                    logCosmicEvent('⚠️ No se pudo cambiar a BNB Chain. Por favor, hazlo manualmente.');
+                    return false;
+                }
+            }
+        }
+
+        // =============================================================================
+        // 🔄 LISTENERS Y MONITOREO
+        // =============================================================================
+
+        function setupEventListeners() {
+            if (appState.provider_type === 'injected' && window.ethereum) {
+                window.ethereum.removeAllListeners('accountsChanged');
+                window.ethereum.removeAllListeners('chainChanged');
+
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    logCosmicEvent(`🔑 Cambio de cuenta detectado.`);
+                    if (accounts.length === 0) {
+                        disconnectWallet();
+                    } else if (appState.wallet_connected) {
+                        connectWallet(); 
+                    }
+                });
+                window.ethereum.on('chainChanged', (chainId) => {
+                    logCosmicEvent(`⛓️ Cambio de red detectado. Reiniciando verificación...`);
+                    if (appState.wallet_connected) connectWallet(); 
+                });
+            } else if (appState.provider_type === 'walletconnect' && walletConnector) {
+                 walletConnector.removeAllListeners("accountsChanged");
+                 walletConnector.removeAllListeners("chainChanged");
+                 walletConnector.removeAllListeners("disconnect");
+                 
+                 walletConnector.on("accountsChanged", (accounts) => {
+                    logCosmicEvent(`🔑 Cambio de cuenta detectado (WC).`);
+                    if (accounts.length > 0) connectWallet(true);
+                 });
+                 walletConnector.on("chainChanged", (chainId) => {
+                    logCosmicEvent(`⛓️ Cambio de red detectado (WC).`);
+                    if (chainId !== CONTRACT_CONFIG.BNB_CHAIN_ID) disconnectWallet();
+                 });
+                 walletConnector.on("disconnect", (code, reason) => {
+                    logCosmicEvent(`🔌 Desconexión de WalletConnect: ${reason || 'sesión terminada'}`);
+                    disconnectWallet();
+                 });
+            }
+        }
+        
+        async function verifyTokenContract() {
+            try {
+                const name = await asvTokenContract.name();
+                const symbol = await asvTokenContract.symbol();
+                const decimals = await asvTokenContract.decimals();
+                
+                logCosmicEvent(`✅ CONTRATO VERIFICADO: ${name} (${symbol}) - Decimals: ${decimals}`);
+                appState.asv_decimals = decimals;
+                return true;
+            } catch (error) {
+                logCosmicEvent(`❌ ERROR: Contrato ASV-A no responde. Verifica la dirección.`);
+                return false;
+            }
+        }
+
+        async function updateASVBalance() {
+            if (!appState.wallet_connected) return;
+
+            try {
+                const readOnlyProvider = new ethers.providers.JsonRpcProvider(CONTRACT_CONFIG.BNB_CHAIN_RPC);
+                const contract = new ethers.Contract(CONTRACT_CONFIG.ASV_A_TOKEN.address, CONTRACT_CONFIG.ASV_A_TOKEN.abi, readOnlyProvider);
+
+                const balanceBN = await contract.balanceOf(appState.wallet_address);
+                const balanceFormatted = ethers.utils.formatUnits(balanceBN, appState.asv_decimals);
+                appState.asv_balance = parseFloat(balanceFormatted);
+                updateStatusDisplay();
+
+            } catch (error) {
+                logCosmicEvent(`⚠️ ERROR al leer saldo: ${error.message}.`);
+                appState.asv_balance = 0; 
+                updateStatusDisplay();
+            }
+        }
+
+        function startBalanceMonitor() {
+            setInterval(async () => {
+                if (appState.wallet_connected) await updateASVBalance();
+                await fetchRealTimePrice();
+            }, 30000); 
+        }
+
+        // =============================================================================
+        // 💸 FUNCIONES DE TRANSACCIÓN (Se mantienen)
+        // =============================================================================
+
+        async function performIntervention() { 
+            if (!appState.wallet_connected) { showServiceResult('error', 'Wallet Desconectada', 'Conecta tu Wallet para pagar servicios.'); return; }
+            
+            const type = document.getElementById('interventionType').value;
+            const target = document.getElementById('targetEntity').value || 'servicio general';
+            const info = USD_COSTS[type];
+            const cost = info.asv;
+
+            await updateASVBalance(); 
+            if (appState.asv_balance < cost) { showServiceResult('error', 'ASV-A Insuficiente', `Saldo insuficiente. Requieres ${formatASVBalance(cost)} ASV-A.`); return; }
+
+            try {
+                const amountToSend = ethers.utils.parseUnits(cost.toString(), appState.asv_decimals);
+                logCosmicEvent(`[SERVICIO] 📤 Solicitando firma para TRANSFERIR ${formatASVBalance(cost)} ASV-A...`);
+                setButtonLoading('miracleButton', true, '✨ PAGAR & REALIZAR SERVICIO');
+
+                const contractWithSigner = asvTokenContract.connect(signer);
+                const tx = await contractWithSigner.transfer(CONTRACT_CONFIG.TREASURY, amountToSend);
+
+                logCosmicEvent(`[SERVICIO] ✅ Transacción enviada. Hash: ${shortenAddress(tx.hash)}`);
+                showServiceResult('warning', 'Transacción en curso', `Confirma la transacción en tu Wallet. Hash: ${shortenAddress(tx.hash)}`);
+
+                await tx.wait(); 
+
+                logCosmicEvent(`[SERVICIO] ⛏️ Confirmada en la BNB Chain. Costo: ${formatASVBalance(cost)} ASV-A transferido.`);
+                appState.servicios_pagados++;
+                
+                updateASVBalance(); 
+                showServiceResult('success', 'Servicio Pagado', `✨ TRANSACCIÓN EXITOSA: Pago por ${info.nombre} (${target}).`);
+
+            } catch (error) {
+                handleTransactionError(error, "PAGO DE SERVICIO");
+            } finally {
+                setButtonLoading('miracleButton', false, '✨ PAGAR & REALIZAR SERVICIO');
+            }
+        }
+        
+        async function adaptToAPI() {
+            if (!appState.wallet_connected) { showServiceResult('error', 'Wallet Desconectada', 'Conecta tu Wallet para pagar el ciclo API.'); return; }
+            
+            const cost = API_ADAPTATION_COST_ASV;
+            
+            await updateASVBalance();
+            if (appState.asv_balance < cost) { showServiceResult('error', 'ASV-A Insuficiente', `Se requieren ${formatASVBalance(cost)} ASV-A.`); return; }
+            
+            try {
+                const amountToSend = ethers.utils.parseUnits(cost.toString(), appState.asv_decimals);
+                logCosmicEvent(`[ADAPTACIÓN] 📤 Solicitando firma para TRANSFERIR ${formatASVBalance(cost)} ASV-A...`);
+                setButtonLoading('adaptButton', true, '🔗 INICIAR ADAPTACIÓN (Pagar Ciclo)');
+
+                const contractWithSigner = asvTokenContract.connect(signer);
+                const tx = await contractWithSigner.transfer(CONTRACT_CONFIG.TREASURY, amountToSend);
+                
+                logCosmicEvent(`[ADAPTACIÓN] ✅ Transacción enviada. Hash: ${shortenAddress(tx.hash)}`);
+                showServiceResult('warning', 'Transacción en curso', `Confirma la transacción en tu Wallet. Hash: ${shortenAddress(tx.hash)}`);
+
+                await tx.wait();
+                
+                logCosmicEvent(`[ADAPTACIÓN] ⛏️ Pago confirmado en la BNB Chain. Costo: ${formatASVBalance(cost)} ASV-A transferido.`);
+                updateASVBalance();
+
+                showServiceResult('success', 'Pago de Ciclo Confirmado', `🔗 Sincronización API de datos habilitada.`);
+
+            } catch (error) {
+                handleTransactionError(error, "PAGO DE API");
+            } finally {
+                setButtonLoading('adaptButton', false, '🔗 INICIAR ADAPTACIÓN (Pagar Ciclo)');
+            }
+        }
+        
+        // =============================================================================
+        // 🛠️ FUNCIONES DE UTILIDAD Y UX (GENERALES)
+        // =============================================================================
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-US', {maximumFractionDigits: 4}).format(num);
+        }
+        function formatASVBalance(num) {
+            return new Intl.NumberFormat('en-US', {maximumFractionDigits: 0}).format(num);
+        }
+        
+        function shortenAddress(address) {
+            if (!address) return '--';
+            return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+        }
+        
+        function logCosmicEvent(message) {
+            const now = new Date();
+            const timeString = now.toTimeString().split(' ')[0];
+            const logElement = document.getElementById('cosmicLog');
+            const newLog = `[${timeString}] ${message}\n`;
+            logElement.textContent += newLog;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function showServiceResult(type, title, message) {
+            const resultDiv = document.getElementById('serviceResult');
+            resultDiv.className = `result-box ${type}`;
+            resultDiv.innerHTML = `<strong>${title}</strong><br>${message}`;
+            resultDiv.style.display = 'block';
+            setTimeout(() => resultDiv.style.display = 'none', 10000);
+        }
+        
+        function setButtonLoading(buttonId, isLoading, originalText) {
+            const button = document.getElementById(buttonId);
+            if (isLoading) {
+                button.classList.add('btn-loading');
+                button.setAttribute('disabled', 'true');
+                button.innerHTML = `<span class="loader"></span> Procesando...`;
+            } else {
+                button.classList.remove('btn-loading');
+                button.removeAttribute('disabled');
+                button.innerHTML = originalText;
+            }
+        }
+
+        function updateWalletUI(isConnected) {
+            const statusEl = document.getElementById('walletStatus');
+            const connectBtn = document.getElementById('connectButton');
+            const disconnectBtn = document.getElementById('disconnectButton');
+            const addressEl = document.getElementById('connectedAddress');
+            
+            if (isConnected) {
+                statusEl.textContent = 'CONECTADA';
+                statusEl.style.color = 'var(--color-secondary)';
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+                addressEl.textContent = shortenAddress(appState.wallet_address);
+            } else {
+                statusEl.textContent = 'DESCONECTADA';
+                statusEl.style.color = 'var(--color-warning)';
+                connectBtn.style.display = 'block';
+                disconnectBtn.style.display = 'none';
+                addressEl.textContent = '--';
+            }
+        }
+
+        function updateStatusDisplay() {
+            document.getElementById('asv_balance').textContent = `${formatNumber(appState.asv_balance)} ASV-A`;
+            document.getElementById('asv_usd_value').textContent = `$${formatNumber(appState.asv_balance * ASV_A_PRICE_USD)} USD`;
+        }
+
+        function updateServiceCost() {
+            const type = document.getElementById('interventionType').value;
+            const info = USD_COSTS[type];
+            if (info) {
+                document.getElementById('currentCostASV').textContent = formatNumber(info.asv);
+                document.getElementById('currentCostUSD').textContent = formatNumber(info.usd);
+            }
+        }
+        
+        // =============================================================================
+        // 📊 FUNCIONES DE GRÁFICOS DINÁMICOS
+        // =============================================================================
+
+        function updateCircleGraph(elementId, percentage) {
+            const graph = document.getElementById(elementId);
+            if (!graph) return;
+            
+            const percent = Math.min(100, Math.max(0, percentage)); 
+            
+            graph.setAttribute('data-percent', `${Math.round(percent)}%`);
+            
+            const deg = (360 * percent) / 100;
+            const mainColor = graph.style.getPropertyValue('--color-main');
+            const darkColor = mainColor ? mainColor.replace(/0\.\d+/, '0.2') : 'rgba(0, 223, 255, 0.2)';
+
+            graph.style.background = `conic-gradient(
+                ${mainColor} 0deg, 
+                ${mainColor} ${deg}deg, 
+                ${darkColor} ${deg}deg, 
+                ${darkColor} 360deg
+            )`;
+        }
+
+        function generatePerformanceBars() {
+            const chartContainer = document.getElementById('data-flow-chart');
+            chartContainer.innerHTML = ''; 
+            
+            for (let i = 0; i < 8; i++) { // Más segmentos para la complejidad
+                const activityLevel = Math.max(10, Math.floor(Math.random() * 100)); // Nivel entre 10 y 100
+                
+                const barSegment = document.createElement('div');
+                barSegment.className = 'bar-segment';
+                barSegment.style.height = `${activityLevel}%`;
+                barSegment.title = `Flujo: ${activityLevel}%`;
+                
+                chartContainer.appendChild(barSegment);
+            }
+            logCosmicEvent(`📊 Gráfico de flujo de datos actualizado con 8 segmentos simulados.`);
+        }
+        
+        // =============================================================================
+        // 📞 PLACEHOLDERS DE ACCIÓN
+        // =============================================================================
+        
+        function reportarProblema() {
+            showServiceResult('warning', 'Diagnóstico Iniciado', 'Enviando paquetes de sondeo al Núcleo.');
+            const currentStrength = parseFloat(document.getElementById('strength-graph').getAttribute('data-percent'));
+            const newStrength = Math.max(50, currentStrength - (Math.random() * 5)); 
+            updateCircleGraph('strength-graph', newStrength);
+        }
+        
+        function actualizarDatos() {
+            showServiceResult('warning', 'Actualización de Datos', 'Sincronizando metadatos del sistema.');
+            const currentBalance = parseFloat(document.getElementById('balance-graph').getAttribute('data-percent'));
+            const newBalance = Math.min(100, currentBalance + (Math.random() * 2)); 
+            updateCircleGraph('balance-graph', newBalance);
+        }
+        
+        function handleTransactionError(error, context) {
+            let message = 'Transacción fallida.';
+            if (error.code === 'ACTION_REJECTED' || error.message.includes('User denied transaction signature')) {
+                message = 'Firma rechazada por el usuario.';
+            } else if (error.message.includes('insufficient funds')) {
+                message = 'Fondos insuficientes en la cuenta.';
+            } else {
+                message = `Error ${context}: ${error.message.substring(0, 100)}...`;
+            }
+            logCosmicEvent(`❌ ERROR de Transacción ${context}: ${error.message}`);
+            showServiceResult('error', `Fallo en ${context}`, message);
+        }
+
+        // =============================================================================
+        // 🏁 INICIALIZACIÓN AL CARGAR
+        // =============================================================================
+
+        window.onload = async function() {
+            document.getElementById('adaptationCostASV').value = 'Calculando...';
+            document.getElementById('interventionType').innerHTML = '<option>Cargando servicios...</option>';
+            
+            updateCircleGraph('strength-graph', 63);
+            updateCircleGraph('balance-graph', 92);
+            generatePerformanceBars(); 
+            
+            await fetchRealTimePrice(); 
+            
+            if (window.ethereum && window.ethereum.isMetaMask) {
+                logCosmicEvent('🔍 Buscando proveedor inyectado (MetaMask/Wallet)...');
+                connectWallet(true);
+            } else {
+                logCosmicEvent('⬇️ ESPERANDO interacción para conectar Wallet.');
+                updateWalletUI(false);
+            }
+        };
+
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASVA.ai - Advanced Synthetic Virtual Agent</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

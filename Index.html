@@ -495,7 +495,63 @@
             document.getElementById('adaptationCostASV').value = formatASVBalance(API_ADAPTATION_COST_ASV);
             updateStatusDisplay();
         }
-
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>AGI Autónoma: Ecosistema de Minado Cognitivo Web3</title>
+    <style>
+        /* --- Estilos base --- */
+        :root {
+            --primary: #58a6ff;
+            --primary-dark: #1f6feb;
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-element: #21262d;
+            --text-primary: #f0f0f0;
+            --text-secondary: #8b949e;
+            --border: #30363d;
+            --success: #3fb950;
+            --warning: #ff7b72;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: var(--text-primary); 
+            background-color: var(--bg-dark); 
+            margin: 0; 
+            padding: 20px;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            min-height: 100vh;
+        }
+        
+        .container { 
+            max-width: 1200px; 
+            margin: 20px auto; 
+            background-color: var(--bg-card); 
+            padding: 30px; 
+            border-radius: 16px; 
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 { 
+            color: var(--primary); 
+            border-bottom: 3px solid var(--border); 
+            padding-bottom: 15px; 
+            margin-top: 0; 
+            font-size: 2.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         // =============================================================================
         // 🔐 LÓGICA DE CONEXIÓN AUTÓNOMA
         // =============================================================================
@@ -583,7 +639,7 @@
             appState.asv_balance = 0;
             appState.provider_type = null;
             updateWalletUI(false);
-            if (log) logCosmicEvent(`❌ WALLET DESCONECTADA. Sesión cerrada.`);
+            if (log) logCosmicEvent(`
             updateStatusDisplay();
         }
 
@@ -653,8 +709,7 @@
                 appState.asv_decimals = decimals;
                 return true;
             } catch (error) {
-                logCosmicEvent(`❌ ERROR: Contrato ASV-A no responde. Verifica la dirección.`);
-                return false;
+                
             }
         }
 
@@ -907,8 +962,7 @@
             } else {
                 message = `Error ${context}: ${error.message.substring(0, 100)}...`;
             }
-            logCosmicEvent(`❌ ERROR de Transacción ${context}: ${error.message}`);
-            showServiceResult('error', `Fallo en ${context}`, message);
+        
         }
 
         // =============================================================================
@@ -1221,8 +1275,17 @@
         </div>
 
     
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
-    
-    <script src="asva_web3_app.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.11/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
+<script>
+/*
+  TODO EL CÓDIGO JAVASCRIPT PERSONALIZADO VA AQUÍ.
+  (Asegúrate de que este bloque venga DESPUÉS de las 4 líneas de arriba)
+*/
+// ... tu código JavaScript de conexión y funciones ...
+</script>
 </body>
-</htm>
+</html>
